@@ -2,6 +2,14 @@
 
 This repository shows how to take the real output of an [Ink](https://github.com/vadimdemedes/ink) CLI, capture it via `node-pty`, render the terminal buffer to PNG with `terminal-screenshot`, and compare the result in Vitest.
 
+## ✨ Features
+
+- ✅ **Perfect Emoji Support** - Correctly renders emoji with proper width calculation (includes patched xterm.js for accurate emoji handling)
+- ✅ **Real Terminal Rendering** - Uses `node-pty` to capture actual ANSI output
+- ✅ **Visual Regression Testing** - Pixel-perfect comparison with baselines
+- ✅ **CI-Optimized** - Bundled emoji fonts for consistent cross-platform rendering
+- ✅ **Flexible Configuration** - Customize terminal size, fonts, and rendering options
+
 ## Quick Start
 
 Install via npm:
@@ -140,7 +148,14 @@ This package includes bundled emoji fonts in the `font/` directory for consisten
 - `twemoji` - TwemojiMozilla.ttf (Twitter emoji)
 - `unifont` - Unifont.otf (monochrome bitmap)
 
-Access them via helpers:
+**Emoji Width Fix:** This package includes a patched version of xterm.js that correctly calculates emoji character widths. Modern emoji (U+1F000-U+1FFFF) are now properly handled as width-2 characters, ensuring:
+- ✅ Box borders align correctly with emoji content
+- ✅ Cursor positioning works accurately after emoji
+- ✅ Text layout remains consistent with other terminal emulators
+
+The patch is automatically applied via `patch-package` during `npm install`.
+
+Access bundled fonts via helpers:
 
 ```ts
 import { getEmojiFontPath } from 'ink-visual-testing';
