@@ -1,6 +1,11 @@
 # Ink Visual Testing
 
-This repository shows how to take the real output of an [Ink](https://github.com/vadimdemedes/ink) CLI, capture it via `node-pty`, render the terminal buffer to PNG with `terminal-screenshot`, and compare the result in Vitest.
+[![npm version](https://img.shields.io/npm/v/ink-visual-testing.svg)](https://www.npmjs.com/package/ink-visual-testing)
+[![npm downloads](https://img.shields.io/npm/dm/ink-visual-testing.svg)](https://www.npmjs.com/package/ink-visual-testing)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/hoteye/ink-visual-testing.svg?style=social)](https://github.com/hoteye/ink-visual-testing)
+
+Visual regression testing for [Ink](https://github.com/vadimdemedes/ink) CLI applications with perfect emoji support.
 
 ## Features
 
@@ -178,4 +183,4 @@ When intentional visual changes are made:
 
 ## License
 
-Dual-licensed under MIT or CC0 1.0 Universal. Choose whichever license better fits your project. See `LICENSE`, `LICENSE-MIT`, and `LICENSE-CC0` for details.
+MIT License. See `LICENSE` for details.
