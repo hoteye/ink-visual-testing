@@ -1,3 +1,6 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 export interface EmojiFontOption {
   key: string;
   description: string;
@@ -42,4 +45,32 @@ export function resolveEmojiFont(key?: string) {
   }
   const option = EMOJI_FONT_OPTIONS[key];
   return option ?? EMOJI_FONT_OPTIONS.system;
+}
+
+/**
+ * Get the absolute path to a bundled emoji font.
+ * Useful for CI environments where you need consistent emoji rendering.
+ *
+ * @param key - Font key: 'color', 'mono', 'twemoji', or 'unifont'
+ * @returns Absolute path to the font file, or undefined if using system fonts
+ *
+ * @example
+ * ```ts
+ * import { getEmojiFontPath } from 'ink-visual-testing';
+ *
+ * const emojiPath = getEmojiFontPath('mono');
+ * // Returns: '/path/to/node_modules/ink-visual-testing/font/NotoEmoji-Regular.ttf'
+ * ```
+ */
+export function getEmojiFontPath(key: string): string | undefined {
+  const option = EMOJI_FONT_OPTIONS[key];
+  if (!option || !option.path) {
+    return undefined;
+  }
+
+  // Resolve relative to this module's location
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+  // Go up from dist/ to package root, then into font/
+  return path.resolve(__dirname, '..', option.path);
 }

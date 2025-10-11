@@ -5,6 +5,53 @@ import { spawn } from 'node-pty';
 import { renderScreenshot } from 'terminal-screenshot';
 import { withEmojiFontConfig } from './terminalScreenshotFontPatch.js';
 
+// Re-export emoji font utilities
+export { getEmojiFontPath, EMOJI_FONT_OPTIONS } from './emojiFonts.js';
+export type { EmojiFontOption } from './emojiFonts.js';
+
+/**
+ * Get CI-optimized configuration for consistent snapshot rendering.
+ * This configuration uses bundled monochrome emoji fonts and standard settings
+ * that work reliably across different CI environments.
+ *
+ * @param emojiFontKey - Optional emoji font key ('mono', 'color', 'twemoji', 'unifont'). Defaults to 'mono' for CI.
+ * @returns Partial configuration object to merge with your options
+ *
+ * @example
+ * ```ts
+ * import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
+ *
+ * await fixedPtyRender(
+ *   'my-cli.tsx',
+ *   'output.png',
+ *   {
+ *     ...getCIOptimizedConfig(),
+ *     cols: 120,
+ *     rows: 60
+ *   }
+ * );
+ * ```
+ */
+export function getCIOptimizedConfig(emojiFontKey: string = 'mono'): Partial<NodePtySnapshotOptions> {
+  const { getEmojiFontPath, EMOJI_FONT_OPTIONS } = require('./emojiFonts.js');
+  const emojiFontPath = getEmojiFontPath(emojiFontKey);
+  const option = EMOJI_FONT_OPTIONS[emojiFontKey];
+
+  return {
+    // Use bundled emoji font for consistency
+    emojiFontPath,
+    emojiFontFamily: option?.family,
+    // Standard font family available in most CI environments
+    fontFamily: 'DejaVu Sans Mono, monospace',
+    // Longer timeout for CI (which can be slower)
+    timeout: 60000,
+    // Standard margin
+    margin: 12,
+    // Black background (most common)
+    backgroundColor: '#000000'
+  };
+}
+
 export interface NodePtySnapshotOptions {
   command: string;
   args?: string[];
@@ -18,6 +65,8 @@ export interface NodePtySnapshotOptions {
   type?: 'png' | 'jpeg';
   emojiFontPath?: string;
   emojiFontFamily?: string;
+  /** Timeout in milliseconds for the PTY process (default: 30000ms) */
+  timeout?: number;
 }
 
 export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Promise<void> {
@@ -33,7 +82,8 @@ export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Pr
     fontFamily = 'DejaVu Sans Mono, Noto Sans Mono CJK SC, monospace',
     type = 'png',
     emojiFontPath,
-    emojiFontFamily
+    emojiFontFamily,
+    timeout = 30000
   } = options;
 
   const outputDir = path.dirname(outputPath);
@@ -61,9 +111,27 @@ export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Pr
   });
 
   await new Promise<void>((resolve, reject) => {
+    let timeoutId: NodeJS.Timeout | undefined;
+
+    // Set up timeout
+    if (timeout > 0) {
+      timeoutId = setTimeout(() => {
+        pty.kill();
+        reject(new Error(
+          `PTY process timed out after ${timeout}ms. ` +
+          `Command: ${command} ${args.join(' ')}`
+        ));
+      }, timeout);
+    }
+
     pty.onExit(({ exitCode }) => {
+      if (timeoutId) clearTimeout(timeoutId);
+
       if (exitCode && exitCode !== 0) {
-        reject(new Error(`PTY exited with code ${exitCode}`));
+        reject(new Error(
+          `PTY exited with code ${exitCode}. ` +
+          `Command: ${command} ${args.join(' ')}`
+        ));
       } else {
         resolve();
       }

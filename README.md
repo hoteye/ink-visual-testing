@@ -57,6 +57,110 @@ npx vitest run
 
 The diff helper relies on `pngjs` + `pixelmatch`; adjust the tolerance via the options passed to `comparePng` if necessary.
 
+## CI Environment Setup
+
+### Quick Start for CI
+
+Use `getCIOptimizedConfig()` to get reliable defaults for CI environments:
+
+```ts
+import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
+
+await fixedPtyRender(
+  'my-cli.tsx',
+  'output.png',
+  {
+    ...getCIOptimizedConfig(), // Uses bundled mono emoji font, 60s timeout
+    cols: 120,
+    rows: 60
+  }
+);
+```
+
+### System Requirements
+
+CI environments need these dependencies for Puppeteer (used by `terminal-screenshot`):
+
+**Ubuntu/Debian:**
+```bash
+apt-get install -y \
+  libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+  libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+  libxfixes3 libxrandr2 libgbm1 libasound2 \
+  libpango-1.0-0 libcairo2 fonts-dejavu-core
+```
+
+**Alpine Linux:**
+```bash
+apk add --no-cache \
+  chromium nss freetype freetype-dev harfbuzz \
+  ca-certificates ttf-dejavu
+```
+
+### GitHub Actions Example
+
+Create `.github/workflows/visual-test.yml`:
+
+```yaml
+name: Visual Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3 libatk1.0-0 libgbm1 fonts-dejavu-core
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Upload diffs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: tests/__diff__/*.png
+```
+
+### Font Consistency
+
+This package includes bundled emoji fonts in the `font/` directory for consistent rendering across environments:
+
+- `mono` - NotoEmoji-Regular.ttf (monochrome, recommended for CI)
+- `color` - NotoColorEmoji.ttf (color emoji)
+- `twemoji` - TwemojiMozilla.ttf (Twitter emoji)
+- `unifont` - Unifont.otf (monochrome bitmap)
+
+Access them via helpers:
+
+```ts
+import { getEmojiFontPath } from 'ink-visual-testing';
+
+const fontPath = getEmojiFontPath('mono');
+// Returns absolute path to bundled font
+```
+
+### Updating Baselines
+
+When intentional visual changes are made:
+
+1. Run tests locally with the same config as CI
+2. Review diff images
+3. If correct, copy output to baselines:
+   ```bash
+   cp tests/__output__/*.png tests/__baselines__/
+   ```
+4. Commit updated baselines
+
 ## License
 
 Dual-licensed under MIT or CC0 1.0 Universal. Choose whichever license better fits your project. See `LICENSE`, `LICENSE-MIT`, and `LICENSE-CC0` for details.
