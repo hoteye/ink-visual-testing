@@ -1,3 +1,5 @@
+# Ink Visual Testing
+
 This repository shows how to take the real output of an [Ink](https://github.com/vadimdemedes/ink) CLI, capture it via `node-pty`, render the terminal buffer to PNG with `terminal-screenshot`, and compare the result in Vitest.
 
 ## Features
