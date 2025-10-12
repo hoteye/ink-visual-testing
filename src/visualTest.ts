@@ -78,25 +78,32 @@ render(component);
 
   fs.writeFileSync(tempCliPath, cliContent);
 
+  // 创建临时渲染脚本
+  const tempRenderScript = path.resolve(`tests/__temp__/${name}-render.mjs`);
+  const renderScriptContent = `
+import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
+
+await fixedPtyRender(
+  '${tempCliPath}',
+  '${outputPath}',
+  {
+    ...getCIOptimizedConfig(),
+    cols: ${cols},
+    rows: ${rows},
+    backgroundColor: '${backgroundColor}'
+  }
+);
+`.trim();
+
+  fs.writeFileSync(tempRenderScript, renderScriptContent);
+
   try {
     // 生成快照
     console.log(`📸 生成快照: ${name}`);
-    execSync(
-      `npx tsx -e "
-        import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
-        await fixedPtyRender(
-          '${tempCliPath}',
-          '${outputPath}',
-          {
-            ...getCIOptimizedConfig(),
-            cols: ${cols},
-            rows: ${rows},
-            backgroundColor: '${backgroundColor}'
-          }
-        );
-      "`,
-      { cwd: process.cwd(), stdio: 'inherit' }
-    );
+    execSync(`npx tsx ${tempRenderScript}`, {
+      cwd: process.cwd(),
+      stdio: 'inherit'
+    });
 
     // 检查 baseline 是否存在
     if (!fs.existsSync(baselinePath)) {
@@ -133,8 +140,12 @@ render(component);
 
   } finally {
     // 清理临时文件
+    const tempRenderScript = path.resolve(`tests/__temp__/${name}-render.mjs`);
     if (fs.existsSync(tempCliPath)) {
       fs.unlinkSync(tempCliPath);
+    }
+    if (fs.existsSync(tempRenderScript)) {
+      fs.unlinkSync(tempRenderScript);
     }
     // 清理临时目录（如果为空）
     try {
