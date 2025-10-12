@@ -242,25 +242,6 @@ your-project/
 └── package.json
 ```
 
-### 🐛 Troubleshooting
-
-**Issue 1: Black images**
-- Cause: Component rendering timeout or error
-- Solution: Check for runtime errors, increase `timeout` config
-
-**Issue 2: Baseline not found on first run**
-- This is normal! First run automatically creates baseline
-- Review the generated baseline image and commit to Git
-
-**Issue 3: Large differences**
-- Check diff images in `tests/__diff__/`
-- If changes are expected, run `npm run baseline:update`
-- If unexpected, review code changes
-
-**Issue 4: Flaky tests in CI**
-- Ensure using fixed mock data (no timestamps, random values)
-- Verify system dependencies are installed (see CI config above)
-
 ## Advanced Usage
 
 ### Lower-Level API
