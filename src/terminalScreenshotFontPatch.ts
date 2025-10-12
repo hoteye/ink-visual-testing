@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import stringWidth from 'string-width';
 
 // Hook into terminal-screenshot's template generation so we can inject a local emoji font.
 const require = createRequire(import.meta.url);
@@ -32,7 +33,12 @@ function measureLength(data: string): number {
     '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
   ].join('|');
 
-  return data.replaceAll(new RegExp(pattern, 'g'), '').length;
+  // Strip ANSI codes
+  const stripped = data.replaceAll(new RegExp(pattern, 'g'), '');
+
+  // Count display width (cells), not character count
+  // This matches what xterm.js expects for cols parameter
+  return stringWidth(stripped);
 }
 
 function normaliseFamilies(baseFamily: string, emojiFamily?: string): string[] {
@@ -97,15 +103,39 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
   const { emojiFontPath, emojiFontFamily } = currentEmojiFont;
   const absoluteEmojiPath = path.resolve(emojiFontPath);
 
+  // Don't dynamically calculate cols - use what was passed from the PTY
+  // The PTY was spawned with specific cols/rows, and we should match that
+  // Dynamic calculation causes mismatches between Ink's layout and xterm.js rendering
   const lines = options.data.split(/\r?\n/);
   const terminalRows = lines.length;
-  const terminalColumns = Math.max(...lines.map(measureLength));
+
+  // Get cols from the first line if it's a full-width line, otherwise use a sensible default
+  // Actually, we can't reliably determine this from the data alone
+  // The best approach is to NOT calculate - let terminal-screenshot handle it
+  // But we need cols for the Terminal constructor...
+
+  // Use original terminal-screenshot's logic but inject our font
+  const terminalColumns = Math.max(...lines.map((line: string) => {
+    const pattern = [
+      '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
+      '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
+    ].join('|');
+    return line.replaceAll(new RegExp(pattern, 'g'), '').length;
+  }));
+
+  console.log(`[terminalScreenshotFontPatch] Using terminal size: ${terminalColumns} cols × ${terminalRows} rows`);
 
   const fontFamilies = normaliseFamilies(options.fontFamily, emojiFontFamily);
   const fontStack = fontFamilies.map(quoteFamily).join(', ');
   const fontStackEscaped = fontStack.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const emojiFamilyEscaped = emojiFontFamily.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const loadFonts = buildFontLoadPromise(fontFamilies);
+
+  // Convert local file paths to file:// URLs for Puppeteer
+  const url = require('url');
+  const xtermCssUrl = url.pathToFileURL(require.resolve('xterm/css/xterm.css')).href;
+  const xtermJsUrl = url.pathToFileURL(require.resolve('xterm/lib/xterm.js')).href;
+  const unicode11Url = url.pathToFileURL(require.resolve('@xterm/addon-unicode11/lib/addon-unicode11.js')).href;
 
   const template = `
     <!DOCTYPE html>
@@ -117,7 +147,7 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
         <style>
             @font-face {
                 font-family: "${emojiFamilyEscaped}";
-                src: url('${require('url').pathToFileURL(absoluteEmojiPath).href}');
+                src: url('${url.pathToFileURL(absoluteEmojiPath).href}');
             }
             body {
                 margin: ${options.margin}px;
@@ -131,63 +161,16 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
             }
         </style>
 
-        <link rel="stylesheet" href="${require.resolve('xterm/css/xterm.css')}" />
+        <link rel="stylesheet" href="${xtermCssUrl}" />
 
-        <script src="${require.resolve('xterm/lib/xterm.js')}"></script>
+        <script src="${xtermJsUrl}"></script>
+        <script src="${unicode11Url}"></script>
     </head>
 
     <body>
         <div id="terminal"></div>
 
         <script>
-            // Patch xterm.js Unicode service to fix emoji width calculation
-            // xterm.js v5.3.0 UnicodeV6 incorrectly calculates modern emoji (U+1F000-1FFFF) as width 1
-            // This patch fixes them to width 2 to match string-width behavior
-            const patchXtermUnicode = (terminal) => {
-                console.log('[PATCH] Attempting to patch xterm Unicode...');
-                console.log('[PATCH] Terminal._core exists:', !!terminal._core);
-
-                if (terminal._core) {
-                    console.log('[PATCH] Terminal._core._coreService exists:', !!terminal._core._coreService);
-
-                    if (terminal._core._coreService) {
-                        console.log('[PATCH] unicodeService exists:', !!terminal._core._coreService.unicodeService);
-                    }
-                }
-
-                // Try alternative access path - xterm.js might have different internal structure
-                const unicode = terminal._core?._coreService?.unicodeService ||
-                               terminal._core?.unicodeService ||
-                               terminal.unicode;
-
-                if (!unicode) {
-                    console.error('[PATCH] Could not access Unicode service!');
-                    return;
-                }
-
-                console.log('[PATCH] Successfully accessed Unicode service, applying patch...');
-                const originalWcwidth = unicode.wcwidth.bind(unicode);
-                let patchCount = 0;
-
-                unicode.wcwidth = (num) => {
-                    // Modern emoji range: U+1F000 to U+1FFFF (including 1F300-1F9FF emoji)
-                    if (num >= 0x1F000 && num <= 0x1FFFF) {
-                        patchCount++;
-                        if (patchCount <= 5) {
-                            console.log(\`[PATCH] Emoji detected: U+\${num.toString(16).toUpperCase()}, returning width 2\`);
-                        }
-                        return 2;
-                    }
-                    // Additional emoji ranges
-                    if (num >= 0x2600 && num <= 0x26FF) return 2; // Miscellaneous Symbols
-                    if (num >= 0x2700 && num <= 0x27BF) return 2; // Dingbats
-
-                    return originalWcwidth(num);
-                };
-
-                console.log('[PATCH] Unicode wcwidth successfully patched!');
-            };
-
             const startTerminal = () => {
                 const terminal = new Terminal({
                     theme: { background: "${options.backgroundColor}" },
@@ -197,10 +180,15 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
                     cursorInactiveStyle: "none"
                 });
 
-                // Apply Unicode patch before opening
-                patchXtermUnicode(terminal);
-
                 terminal.open(document.getElementById('terminal'));
+
+                // Load Unicode 11 addon for proper emoji width support
+                console.log('[ink-visual-testing] Loading Unicode 11 addon');
+                const unicode11 = new Unicode11Addon();
+                terminal.loadAddon(unicode11);
+                terminal.unicode.activeVersion = '11';
+                console.log('[ink-visual-testing] Active Unicode version:', terminal.unicode.activeVersion);
+
                 terminal.write(${JSON.stringify(options.data)});
             };
 

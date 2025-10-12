@@ -3,13 +3,15 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
 
-type CompareOptions = {
+export type CompareOptions = {
   threshold?: number;
   maxDiffPixels?: number;
 };
 
-type CompareResult = {
+export type CompareResult = {
   diffPixels: number;
+  totalPixels: number;
+  diffPercentage: number;
   diffPath: string;
 };
 
@@ -36,14 +38,17 @@ export async function comparePng(
     { threshold }
   );
 
+  const totalPixels = actual.width * actual.height;
+  const diffPercentage = (diffPixels / totalPixels) * 100;
+
   fs.mkdirSync(path.dirname(diffPath), { recursive: true });
   fs.writeFileSync(diffPath, PNG.sync.write(diff));
 
   if (diffPixels > maxDiffPixels) {
     throw new Error(
-      `PNG diff exceeded tolerance: ${diffPixels} pixels differ (allowed ${maxDiffPixels}). Diff saved to ${diffPath}`
+      `PNG diff exceeded tolerance: ${diffPixels} pixels differ (${diffPercentage.toFixed(2)}% of ${totalPixels} total, allowed ${maxDiffPixels}). Diff saved to ${diffPath}`
     );
   }
 
-  return { diffPixels, diffPath };
+  return { diffPixels, totalPixels, diffPercentage, diffPath };
 }

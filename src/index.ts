@@ -4,17 +4,24 @@ import process from 'process';
 import { spawn } from 'node-pty';
 import { renderScreenshot } from 'terminal-screenshot';
 import { withEmojiFontConfig } from './terminalScreenshotFontPatch.js';
+import { getEmojiFontPath, EMOJI_FONT_OPTIONS } from './emojiFonts.js';
 
 // Re-export emoji font utilities
-export { getEmojiFontPath, EMOJI_FONT_OPTIONS } from './emojiFonts.js';
+export { getEmojiFontPath, EMOJI_FONT_OPTIONS };
 export type { EmojiFontOption } from './emojiFonts.js';
+
+// Export visual test helper
+export { visualTest } from './visualTest.js';
+export type { VisualTestOptions } from './visualTest.js';
 
 /**
  * Get CI-optimized configuration for consistent snapshot rendering.
- * This configuration uses bundled monochrome emoji fonts and standard settings
- * that work reliably across different CI environments.
+ * This configuration uses system fonts by default which work reliably across different CI environments.
  *
- * @param emojiFontKey - Optional emoji font key ('mono', 'color', 'twemoji', 'unifont'). Defaults to 'mono' for CI.
+ * Note: Bundled emoji fonts (NotoEmoji, etc.) may not work in all environments (e.g., WSL).
+ * Use system fonts for better compatibility.
+ *
+ * @param emojiFontKey - Optional emoji font key ('mono', 'color', 'twemoji', 'unifont', 'system'). Defaults to 'system'.
  * @returns Partial configuration object to merge with your options
  *
  * @example
@@ -25,20 +32,19 @@ export type { EmojiFontOption } from './emojiFonts.js';
  *   'my-cli.tsx',
  *   'output.png',
  *   {
- *     ...getCIOptimizedConfig(),
+ *     ...getCIOptimizedConfig(), // Uses system fonts by default
  *     cols: 120,
  *     rows: 60
  *   }
  * );
  * ```
  */
-export function getCIOptimizedConfig(emojiFontKey: string = 'mono'): Partial<NodePtySnapshotOptions> {
-  const { getEmojiFontPath, EMOJI_FONT_OPTIONS } = require('./emojiFonts.js');
-  const emojiFontPath = getEmojiFontPath(emojiFontKey);
+export function getCIOptimizedConfig(emojiFontKey: string = 'system'): Partial<NodePtySnapshotOptions> {
+  const emojiFontPath = emojiFontKey === 'system' ? undefined : getEmojiFontPath(emojiFontKey);
   const option = EMOJI_FONT_OPTIONS[emojiFontKey];
 
   return {
-    // Use bundled emoji font for consistency
+    // Use bundled emoji font only if explicitly requested
     emojiFontPath,
     emojiFontFamily: option?.family,
     // Standard font family available in most CI environments
@@ -146,10 +152,23 @@ export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Pr
     ? `${emojiConfig.emojiFontFamily}, ${fontFamily}`
     : fontFamily;
   console.log(`[ink-visual-testing] Rendering snapshot with fonts: ${fontStackForLog}`);
+  console.log(`[ink-visual-testing] Captured data length: ${captured.length} bytes`);
+  if (captured.length < 100) {
+    console.log(`[ink-visual-testing] WARNING: Captured data seems too short!`);
+    console.log(`[ink-visual-testing] Data preview: ${JSON.stringify(captured.substring(0, 200))}`);
+  }
+
+  // Remove variation selectors to avoid width calculation mismatches
+  // Variation Selector-16 (U+FE0F) causes issues between Ink's string-width and xterm.js rendering
+  const cleanedData = captured.replace(/\uFE0F/g, '');
+  const vsCount = (captured.match(/\uFE0F/g) || []).length;
+  if (vsCount > 0) {
+    console.log(`[ink-visual-testing] Removed ${vsCount} variation selectors for consistent rendering`);
+  }
 
   const buffer = await withEmojiFontConfig(emojiConfig, () =>
     renderScreenshot({
-      data: captured,
+      data: cleanedData,
       margin,
       backgroundColor,
       fontFamily,

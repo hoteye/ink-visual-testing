@@ -3,118 +3,197 @@
 [![npm version](https://img.shields.io/npm/v/ink-visual-testing.svg)](https://www.npmjs.com/package/ink-visual-testing)
 [![npm downloads](https://img.shields.io/npm/dm/ink-visual-testing.svg)](https://www.npmjs.com/package/ink-visual-testing)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/hoteye/ink-visual-testing.svg?style=social)](https://github.com/hoteye/ink-visual-testing)
 
-Visual regression testing for [Ink](https://github.com/vadimdemedes/ink) CLI applications with perfect emoji support.
+为 [Ink](https://github.com/vadimdemedes/ink) CLI 应用提供开箱即用的视觉回归测试。
 
-## Features
+## 用途
 
-- **Perfect Emoji Support** - Correctly renders emoji with proper width calculation (includes patched xterm.js for accurate emoji handling)
-- **Real Terminal Rendering** - Uses `node-pty` to capture actual ANSI output
-- **Visual Regression Testing** - Pixel-perfect comparison with baselines
-- **CI-Optimized** - Bundled emoji fonts for consistent cross-platform rendering
-- **Flexible Configuration** - Customize terminal size, fonts, and rendering options
+视觉回归测试用于检测 UI 界面的意外变化：
 
-## Quick Start
+- ✅ **防止布局错乱** - 自动检测边框、对齐、间距等布局问题
+- ✅ **验证动态数据渲染** - 确保不同数据下的界面正确显示
+- ✅ **捕获样式变化** - 检测颜色、字体等样式的意外改变
+- ✅ **多状态测试** - 测试加载、错误、空状态等各种场景
+- ✅ **CI/CD 集成** - 在合并代码前自动发现视觉问题
 
-Install via npm:
-
-```bash
-npm install ink-visual-testing
-
-# or install both deps for the example fixture
-npm install
-```
-
-Generate a snapshot of the example Ink CLI:
+## 安装
 
 ```bash
-npx tsx examples/simple-box-snapshot.tsx --cols=120 --rows=60 --output=snapshots/simple-box.png
-# request one of the bundled emoji fonts (defaults to system fonts)
-npx tsx examples/simple-box-snapshot.tsx --emoji-font=mono
+npm install ink-visual-testing --save-dev
 ```
 
-By default the script renders with the system font stack so you can see how output looks on your machine. Use `--emoji-font=system|color|mono|twemoji|unifont` to switch to the bundled fonts under `font/` when you need consistent emoji rendering.
+## 用法
 
-## Programmatic API
+### 1. 基础用法
 
-```ts
-import path from 'node:path';
-import { fixedPtyRender } from 'ink-visual-testing';
+```tsx
+import { describe, it } from 'vitest';
+import React from 'react';
+import { Box, Text } from 'ink';
+import { visualTest } from 'ink-visual-testing';
 
-await fixedPtyRender(
-  path.resolve('examples/simple-box-cli.tsx'),
-  'snapshots/simple-box.png',
-  { cols: 120, rows: 60 }
+// 你的 Ink 组件
+const Greeting = ({ name, message }) => (
+  <Box borderStyle="round" borderColor="cyan" padding={1}>
+    <Text>Hello, <Text bold color="green">{name}</Text>!</Text>
+    <Text dimColor>{message}</Text>
+  </Box>
 );
+
+describe('Greeting', () => {
+  it('应该正确渲染', async () => {
+    // 用 Mock 数据填充组件
+    const mockData = {
+      name: 'Alice',
+      message: 'Welcome to Ink Visual Testing'
+    };
+
+    // 一行代码完成视觉测试
+    await visualTest('greeting', <Greeting {...mockData} />);
+  });
+});
 ```
 
-- `fixedPtyRender` (and the underlying `createSnapshotFromPty`) runs the command inside `node-pty`, captures ANSI output, and renders a PNG.
-- Override `cols`, `rows`, `margin`, `backgroundColor`, `fontFamily`, or `type` as needed.
-- Supply `emojiFontPath`/`emojiFontFamily` if you want to load a local emoji-capable font. The helper defaults to the system fonts but the snapshot script exposes `--emoji-font=system|color|mono|twemoji|unifont` for convenience.
+**首次运行**：自动生成基线图片 `tests/__baselines__/greeting.png`
+**后续运行**：自动对比当前输出与基线，发现差异则测试失败
 
-## Visual Test Example
+### 2. 配置选项
 
-Visual regression is handled with Vitest and PNG diffing:
-
-- `examples/simple-box.tsx`: Ink component used for the demo.
-- `examples/simple-box-cli.tsx`: CLI entry that renders the component.
-- `examples/simple-box-snapshot.tsx`: Invokes `fixedPtyRender` to emit a PNG.
-- `tests/simple-box.test.ts`: Runs the snapshot script, then calls `comparePng` (from `tests/utils/imageDiff.ts`) to compare the PNG against `tests/__baselines__/simple-box.png`. Diffs are written to `tests/__diff__/`.
-
-Run the suite with:
-
-```bash
-npx vitest run
-```
-
-The diff helper relies on `pngjs` + `pixelmatch`; adjust the tolerance via the options passed to `comparePng` if necessary.
-
-## CI Environment Setup
-
-### Quick Start for CI
-
-Use `getCIOptimizedConfig()` to get reliable defaults for CI environments:
-
-```ts
-import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
-
-await fixedPtyRender(
-  'my-cli.tsx',
-  'output.png',
+```tsx
+await visualTest(
+  'component-name',      // 快照名称
+  <MyComponent />,       // React 组件
   {
-    ...getCIOptimizedConfig(), // Uses bundled mono emoji font, 60s timeout
-    cols: 120,
-    rows: 60
+    cols: 80,                  // 终端宽度（默认 80）
+    rows: 24,                  // 终端高度（默认 24）
+    maxDiffPixels: 100,        // 允许的最大差异像素（默认 100）
+    threshold: 0.1,            // 像素差异阈值 0-1（默认 0.1）
+    backgroundColor: '#000000' // 背景色（默认黑色）
   }
 );
 ```
 
-### System Requirements
+### 3. 测试不同状态
 
-CI environments need these dependencies for Puppeteer (used by `terminal-screenshot`):
+```tsx
+describe('Dashboard', () => {
+  it('加载中状态', async () => {
+    await visualTest('dashboard-loading', <Dashboard loading={true} />);
+  });
 
-**Ubuntu/Debian:**
-```bash
-apt-get install -y \
-  libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-  libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
-  libxfixes3 libxrandr2 libgbm1 libasound2 \
-  libpango-1.0-0 libcairo2 fonts-dejavu-core
+  it('正常状态', async () => {
+    const mockData = { users: 100, sales: 5000 };
+    await visualTest('dashboard-loaded', <Dashboard data={mockData} />);
+  });
+
+  it('错误状态', async () => {
+    await visualTest('dashboard-error', <Dashboard error="网络错误" />);
+  });
+});
 ```
 
-**Alpine Linux:**
-```bash
-apk add --no-cache \
-  chromium nss freetype freetype-dev harfbuzz \
-  ca-certificates ttf-dejavu
+### 4. 测试响应式布局
+
+```tsx
+it('不同终端尺寸', async () => {
+  const mockData = { /* ... */ };
+
+  // 小终端
+  await visualTest('small', <MyApp data={mockData} />, {
+    cols: 60,
+    rows: 20
+  });
+
+  // 大终端
+  await visualTest('large', <MyApp data={mockData} />, {
+    cols: 120,
+    rows: 40
+  });
+});
 ```
 
-### GitHub Actions Example
+### 5. 更新基线
 
-Create `.github/workflows/visual-test.yml`:
+当界面有**预期的**变更时，需要更新基线：
+
+```bash
+# 运行测试
+npm test
+
+# 检查生成的新图片
+open tests/__output__/*.png
+
+# 确认正确后，更新基线
+cp tests/__output__/*.png tests/__baselines__/
+
+# 提交更新
+git add tests/__baselines__/
+git commit -m "Update visual baselines"
+```
+
+或者使用 npm script：
+
+```json
+{
+  "scripts": {
+    "test": "vitest",
+    "baseline:update": "cp tests/__output__/*.png tests/__baselines__/"
+  }
+}
+```
+
+## 注意事项
+
+### ⚠️ 关键要点
+
+1. **使用固定的 Mock 数据**
+   ```tsx
+   // ✅ 好：固定数据
+   const mockData = {
+     timestamp: '2024-01-15 10:30:00',
+     count: 42
+   };
+
+   // ❌ 坏：动态数据（每次都不同）
+   const mockData = {
+     timestamp: new Date().toISOString(),
+     count: Math.random()
+   };
+   ```
+
+2. **为每个状态创建独立测试**
+   ```tsx
+   // ✅ 好：分开测试
+   it('空状态', () => visualTest('empty', <List items={[]} />));
+   it('有数据', () => visualTest('with-data', <List items={mock} />));
+
+   // ❌ 坏：复用名称
+   it('列表', () => {
+     visualTest('list', <List items={[]} />);
+     visualTest('list', <List items={mock} />); // 名称冲突！
+   });
+   ```
+
+3. **合理设置差异容差**
+   - 静态内容（logo、图标）：`maxDiffPixels: 0`（严格）
+   - 简单布局：`maxDiffPixels: 100`（默认）
+   - 复杂布局：`maxDiffPixels: 500`（宽松）
+
+4. **忽略生成的文件**
+   ```gitignore
+   # .gitignore
+   tests/__output__/    # 测试输出
+   tests/__diff__/      # 差异图片
+   tests/__temp__/      # 临时文件
+
+   # 基线图片需要提交
+   !tests/__baselines__/
+   ```
+
+### 🔧 CI/CD 配置
 
 ```yaml
+# .github/workflows/test.yml
 name: Visual Tests
 
 on: [push, pull_request]
@@ -136,7 +215,7 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      - name: Upload diffs on failure
+      - name: Upload diff images on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -144,43 +223,99 @@ jobs:
           path: tests/__diff__/*.png
 ```
 
-### Font Consistency
+### 📊 目录结构
 
-This package includes bundled emoji fonts in the `font/` directory for consistent rendering across environments:
+推荐的项目结构：
 
-- `mono` - NotoEmoji-Regular.ttf (monochrome, recommended for CI)
-- `color` - NotoColorEmoji.ttf (color emoji)
-- `twemoji` - TwemojiMozilla.ttf (Twitter emoji)
-- `unifont` - Unifont.otf (monochrome bitmap)
-
-**Emoji Width Fix:** This package includes a patched version of xterm.js that correctly calculates emoji character widths. Modern emoji (U+1F000-U+1FFFF) are now properly handled as width-2 characters, ensuring:
-- ✅ Box borders align correctly with emoji content
-- ✅ Cursor positioning works accurately after emoji
-- ✅ Text layout remains consistent with other terminal emulators
-
-The patch is automatically applied via `patch-package` during `npm install`.
-
-Access bundled fonts via helpers:
-
-```ts
-import { getEmojiFontPath } from 'ink-visual-testing';
-
-const fontPath = getEmojiFontPath('mono');
-// Returns absolute path to bundled font
+```
+your-project/
+├── src/
+│   └── components/
+│       └── MyComponent.tsx     # 你的 Ink 组件
+├── tests/
+│   ├── MyComponent.test.ts     # 测试文件（包含 Mock 数据）
+│   ├── __baselines__/          # 基线图片（提交到 Git）
+│   │   ├── my-component.png
+│   │   └── my-component-loading.png
+│   ├── __output__/             # 测试输出（Git ignore）
+│   └── __diff__/               # 差异图片（Git ignore）
+└── package.json
 ```
 
-### Updating Baselines
+### 🐛 故障排除
 
-When intentional visual changes are made:
+**问题 1：图片全黑**
+- 原因：组件渲染超时或错误
+- 解决：检查组件是否有运行时错误，增加 `timeout` 配置
 
-1. Run tests locally with the same config as CI
-2. Review diff images
-3. If correct, copy output to baselines:
-   ```bash
-   cp tests/__output__/*.png tests/__baselines__/
-   ```
-4. Commit updated baselines
+**问题 2：首次运行提示基线不存在**
+- 这是正常的！首次运行会自动创建基线
+- 确认生成的基线图片正确后提交到 Git
+
+**问题 3：差异太大**
+- 查看 `tests/__diff__/` 中的差异图片
+- 如果是预期变更，运行 `npm run baseline:update`
+- 如果不是预期变更，检查代码改动
+
+**问题 4：CI 中测试不稳定**
+- 确保使用固定的 Mock 数据（不要用当前时间、随机数）
+- 确保安装了必要的系统依赖（见上面 CI 配置）
+
+## 高级用法
+
+### 低级 API
+
+如果需要更多控制，可以使用底层 API：
+
+```tsx
+import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
+import path from 'node:path';
+
+// 渲染 CLI 应用到 PNG
+await fixedPtyRender(
+  path.resolve('examples/my-cli.tsx'),
+  'output.png',
+  {
+    ...getCIOptimizedConfig(),
+    cols: 120,
+    rows: 60
+  }
+);
+```
+
+### 字体配置
+
+默认使用系统字体（推荐），如需使用 bundled emoji 字体：
+
+```tsx
+import { getCIOptimizedConfig } from 'ink-visual-testing';
+
+getCIOptimizedConfig('mono')   // NotoEmoji-Regular.ttf（单色）
+getCIOptimizedConfig('color')  // NotoColorEmoji.ttf（彩色）
+getCIOptimizedConfig()         // 系统字体（默认）
+```
+
+## 示例项目
+
+查看 `examples/` 目录获取完整示例：
+
+- `examples/dashboard.tsx` - 复杂 Dashboard 布局示例（包含多种 emoji 和布局）
+- `examples/dashboard-cli.tsx` - CLI 入口
+- `examples/dashboard-snapshot.tsx` - 快照生成脚本
+
+运行示例：
+```bash
+# 查看实时渲染
+npx tsx examples/dashboard-cli.tsx
+
+# 生成快照
+npx tsx examples/dashboard-snapshot.tsx
+```
 
 ## License
 
-MIT License. See `LICENSE` for details.
+MIT License. See [LICENSE](LICENSE) for details.
+
+## 贡献
+
+欢迎贡献！请查看 [GitHub Issues](https://github.com/hoteye/ink-visual-testing/issues)。
