@@ -83,7 +83,7 @@ render(component);
     console.log(`📸 生成快照: ${name}`);
     execSync(
       `npx tsx -e "
-        import { fixedPtyRender, getCIOptimizedConfig } from './dist/index.js';
+        import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
         await fixedPtyRender(
           '${tempCliPath}',
           '${outputPath}',
