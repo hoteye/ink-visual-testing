@@ -376,6 +376,29 @@ jobs:
           path: tests/__diff__/*.png
 ```
 
+### Keep Snapshot Dimensions Stable
+
+- **Measure once, reuse everywhere** – Run your render script manually and capture the PTY output to learn the exact character size of the UI. For example:
+  ```bash
+  npx tsx render-settings-dialog.tsx > captured-pty-data.txt
+  node -e "import fs from 'fs'; import strip from 'strip-ansi'; const lines = strip(fs.readFileSync('captured-pty-data.txt','utf8')).split('\\n'); console.log({ cols: Math.max(...lines.map(l => l.length)), rows: lines.length });"
+  ```
+  Use the reported `cols`/`rows` as your minimum terminal size.
+- **Share a snapshot config** – Define a single object that freezes every dimension-sensitive option (`cols`, `rows`, `margin`, `fontFamily`, `emojiFontKey`) and reuse it in all tests and in CI:
+  ```ts
+  const sharedSnapshotConfig = {
+    ...getCIOptimizedConfig('system'),
+    cols: 80,
+    rows: 24,
+    margin: 12,
+    fontFamily: 'DejaVu Sans Mono, Consolas, monospace',
+  } satisfies Partial<NodePtySnapshotOptions>;
+  ```
+  Then spread `sharedSnapshotConfig` into every `createSnapshotFromPty` call.
+- **Controlled baseline updates** – Mirror Vitest’s snapshot flow: respect the `--update` flag (or `process.env.UPDATE_SNAPSHOT`) to decide when to write into `tests/__screenshots__/<test-file>/`, and otherwise emit fresh renders into `tests/__visual_output__` for diffing. Provide a manual override env (e.g. `UPDATE_BASELINES=1`) only as a fallback for local scripts.
+- **Document overrides** – If a test needs a different size (e.g. small vs. large terminal), record the reasoning in code comments and keep those values constant between baseline generation and CI runs.
+- **Optional trims** – If you want to remove surrounding padding, pass `trimTransparentBorder: true`; otherwise keep the same margin everywhere so that the bitmap remains identical across runs.
+
 ### Project Structure
 
 Recommended directory structure:

@@ -11,8 +11,38 @@
  * to catch visual regressions and ensure UI consistency across changes.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it } from 'vitest';
 import { createSnapshotFromPty, getCIOptimizedConfig } from 'ink-visual-testing';
+
+const resolveSnapshotOutput = (testName: string) => {
+  const baselineDir = path.join(
+    'tests',
+    '__screenshots__',
+    'SettingsDialog.visual.test.tsx',
+  );
+  const actualDir = path.join('tests', '__visual_output__');
+  const baselinePath = path.join(baselineDir, `${testName}.png`);
+
+  const vitestState = (globalThis as any).__vitest_worker__;
+  const updateMode = vitestState?.config?.snapshotOptions?.updateSnapshot ?? 'new';
+  const updateEnv = process.env.UPDATE_BASELINES ?? process.env.UPDATE_SNAPSHOT;
+  const updateFlag = updateEnv === '1' || updateEnv === 'true';
+  const baselineExists = fs.existsSync(baselinePath);
+
+  const shouldWriteBaseline =
+    updateFlag ||
+    updateMode === 'all' ||
+    (!baselineExists && updateMode !== 'none');
+
+  const outputDir = shouldWriteBaseline ? baselineDir : actualDir;
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  return { outputDir };
+};
 
 /**
  * Helper function to create a visual test using the standalone render script
@@ -44,8 +74,8 @@ const visualTest = async (
   const scriptPath = 'render-settings-dialog.tsx';
   const configArg = JSON.stringify({ userSettings });
 
-  // Generate the visual snapshot
-  const outputPath = `tests/__visual_output__/${testName}.png`;
+  const { outputDir } = resolveSnapshotOutput(testName);
+  const outputPath = path.join(outputDir, `${testName}.png`);
 
   await createSnapshotFromPty({
     command: process.platform === 'win32' ? 'npx.cmd' : 'npx',

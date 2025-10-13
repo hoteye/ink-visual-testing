@@ -15,6 +15,13 @@ export type CompareResult = {
   diffPath: string;
 };
 
+/**
+ * Compare two PNG files and optionally fail when the diff exceeds a limit.
+ * - Uses `pngjs` to decode pixels and `pixelmatch` to highlight differences.
+ * - Always writes a diff image so you can inspect mismatches visually.
+ * - `threshold` ∈ [0, 1] controls pixelmatch sensitivity: 0 = very strict, ≈0.05–0.2 is common to ignore anti-aliasing noise, >0.5 tolerates larger luminance changes.
+ * - `maxDiffPixels` sets the tolerance: if exceeded, the function throws an error.
+ */
 export async function comparePng(
   actualPath: string,
   baselinePath: string,

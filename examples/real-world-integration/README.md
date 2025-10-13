@@ -6,10 +6,6 @@ This directory contains a real-world example of integrating `ink-visual-testing`
 
 Here's what the generated visual snapshots look like:
 
-**Default State (120×40 terminal):**
-
-![Settings Dialog - Default](example-output.png)
-
 **Small Terminal (80×24):**
 
 ![Settings Dialog - Small Terminal](example-small-terminal.png)
@@ -331,6 +327,12 @@ cols: 120, rows: 40
 // Large terminal
 cols: 160, rows: 60
 ```
+
+### Baseline Management
+
+- Run Vitest with `--update` when intentionally refreshing reference images. The helper reads Vitest’s snapshot mode so `vitest --update --run SettingsDialog.visual.test.tsx` writes to `tests/__screenshots__/SettingsDialog.visual.test.tsx/`.
+- Regular test runs keep writing into `tests/__visual_output__` so you can diff against the committed baselines without overwriting them.
+- As a fallback for standalone scripts you can set `UPDATE_BASELINES=1` to force baseline writes, mirroring the behavior of Vitest’s `--update` flag.
 
 ## 🐛 Troubleshooting
 
