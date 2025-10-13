@@ -612,7 +612,9 @@ getCIOptimizedConfig()         // System fonts (default)
 
 ## Examples
 
-See `examples/` directory for complete examples:
+### Quick Start Examples
+
+See `examples/` directory for basic examples:
 
 - `examples/dashboard.tsx` - Complex dashboard layout with emoji and various layouts
 - `examples/dashboard-cli.tsx` - CLI entry point
@@ -626,6 +628,23 @@ npx tsx examples/dashboard-cli.tsx
 # Generate snapshot
 npx tsx examples/dashboard-snapshot.tsx
 ```
+
+### Real-World Integration Example
+
+For a complete, production-ready example showing how to integrate `ink-visual-testing` into an existing project with complex components, see:
+
+**[Real-World Integration Guide](examples/real-world-integration/README.md)**
+
+This example demonstrates:
+- ✅ Testing a complex Settings Dialog component with 6 test cases
+- ✅ Handling Context Providers (VimModeProvider, KeypressProvider)
+- ✅ Creating reusable test helpers
+- ✅ Proper mock data structure for stateful components
+- ✅ Testing different terminal sizes and states
+- ✅ WSL/CI compatibility best practices
+- ✅ Complete troubleshooting guide
+
+Perfect for understanding how to use `ink-visual-testing` in real projects!
 
 ## License
 
