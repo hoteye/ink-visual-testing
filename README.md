@@ -489,23 +489,6 @@ But this is a **one-time investment** with continuous benefits!
 
 **Key insight:** Most changes (80%) only require updating baseline images—typically just a quick review before approving visual changes!
 
-### Real-world Example: One Year of Maintenance
-
-Let's track a SettingsDialog component over one year:
-
-| Month | Change |
-|-------|--------|
-| **Month 0** | Initial setup (7 scenarios) |
-| Month 1 | Added 5 new settings |
-| Month 2 | Updated colors and spacing |
-| Month 3 | Added theme support (3 new tests) |
-| Month 5 | Changed font size |
-| Month 7 | Added ThemeProvider (breaking change) |
-| Month 9 | Added 10 more settings |
-| Month 11 | Redesigned layout |
-
-**Takeaway:** Ongoing work centers on reviewing updated screenshots and occasionally adding new fixtures. Visual testing keeps regressions visible without significant manual effort.
-
 ### Why "One-time Setup, Continuous Benefits"?
 
 #### 1. Test Files Never Change
