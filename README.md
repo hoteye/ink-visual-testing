@@ -386,7 +386,11 @@ your-project/
 │   └── components/
 │       └── MyComponent.tsx     # Your Ink component
 ├── tests/
-│   ├── MyComponent.test.ts     # Test file (with mock data)
+│   ├── simple-box-auto.test.ts # Visual test entry
+│   ├── utils/                  # Shared helpers (diffing, snapshots, etc.)
+│   │   ├── imageDiff.ts
+│   │   └── visualSnapshot.ts
+│   ├── vitest.setup.ts         # Test environment setup
 │   ├── __baselines__/          # Baseline images (commit to Git)
 │   │   ├── my-component.png
 │   │   └── my-component-loading.png
