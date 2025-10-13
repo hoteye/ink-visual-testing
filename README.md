@@ -10,11 +10,11 @@ Visual regression testing for [Ink](https://github.com/vadimdemedes/ink) CLI app
 
 Visual regression testing helps detect unexpected changes in your UI:
 
-- ✅ **Prevent Layout Issues** - Automatically detect border, alignment, and spacing problems
-- ✅ **Validate Dynamic Rendering** - Ensure UI displays correctly with different data
-- ✅ **Catch Style Changes** - Detect unexpected color, font, and style modifications
-- ✅ **Multi-State Testing** - Test loading, error, empty states, and more
-- ✅ **CI/CD Integration** - Automatically catch visual bugs before merging
+- **Prevent Layout Issues** - Automatically detect border, alignment, and spacing problems
+- **Validate Dynamic Rendering** - Ensure UI displays correctly with different data
+- **Catch Style Changes** - Detect unexpected color, font, and style modifications
+- **Multi-State Testing** - Test loading, error, empty states, and more
+- **CI/CD Integration** - Automatically catch visual bugs before merging
 
 ## Installation
 
@@ -168,7 +168,7 @@ const mockSettings = {
 
 **Test output:**
 ```bash
-❯ npm test
+$ npm test
 
  FAIL  tests/SettingsDialog.visual.test.tsx
    × should render default settings dialog
@@ -234,7 +234,7 @@ Someone modified the file count in a success message:
 
 **Test output:**
 ```bash
-❯ npm test
+$ npm test
 
  FAIL  tests/VisualFailure.demo.test.tsx
    × should detect content difference (extra text)
@@ -269,7 +269,7 @@ Someone changed the color of a status indicator from yellow to cyan:
 
 **Test output:**
 ```bash
-❯ npm test
+$ npm test
 
  FAIL  tests/VisualFailure.demo.test.tsx
    × should detect color difference (cyan vs yellow)
@@ -297,17 +297,17 @@ The diff image uses these colors:
 
 ## Best Practices
 
-### ⚠️ Key Points
+### Key Points
 
 1. **Use Fixed Mock Data**
    ```tsx
-   // ✅ Good: Fixed data
+   // Good: Fixed data
    const mockData = {
      timestamp: '2024-01-15 10:30:00',
      count: 42
    };
 
-   // ❌ Bad: Dynamic data (different every time)
+   // Bad: Dynamic data (different every time)
    const mockData = {
      timestamp: new Date().toISOString(),
      count: Math.random()
@@ -316,11 +316,11 @@ The diff image uses these colors:
 
 2. **Create Separate Tests for Each State**
    ```tsx
-   // ✅ Good: Separate tests
+   // Good: Separate tests
    it('empty state', () => visualTest('empty', <List items={[]} />));
    it('with data', () => visualTest('with-data', <List items={mock} />));
 
-   // ❌ Bad: Reusing names
+   // Bad: Reusing names
    it('list', () => {
      visualTest('list', <List items={[]} />);
      visualTest('list', <List items={mock} />); // Name conflict!
@@ -343,7 +343,7 @@ The diff image uses these colors:
    !tests/__baselines__/
    ```
 
-### 🔧 CI/CD Configuration
+### CI/CD Configuration
 
 ```yaml
 # .github/workflows/test.yml
@@ -376,7 +376,7 @@ jobs:
           path: tests/__diff__/*.png
 ```
 
-### 📊 Project Structure
+### Project Structure
 
 Recommended directory structure:
 
@@ -428,7 +428,7 @@ it('renders simple message', async () => {
 });
 ```
 
-**Effort:** ~33 lines of code, **5-10 minutes**
+**Effort:** ~33 lines of code
 
 #### Complex Components (With Context Providers)
 
@@ -469,46 +469,38 @@ process.on('SIGINT', () => {
 });
 ```
 
-**Effort for 7 test scenarios:** ~483 lines of code, **1-2 hours**
+**Effort for 7 test scenarios:** ~483 lines of code
 
 But this is a **one-time investment** with continuous benefits!
 
 ### Maintenance Cost When Components Change
 
-| Change Type | What to Update | Time Required | Frequency |
-|------------|----------------|---------------|-----------|
-| **Add new option/feature** | Only baseline images | 1-2 min | Common (80%) |
-| **Style/layout changes** | Only baseline images | 1-2 min | Common |
-| **Add new test scenario** | 1 new fixture file | 5-7 min | Occasional |
-| **Modify component props** | Batch find-replace in fixtures | 5-10 min | Rare |
-| **Change Context structure** | All fixture files | 15-20 min | Very rare |
+| Change Type | What to Update | Frequency |
+|------------|----------------|-----------|
+| **Add new option/feature** | Only baseline images | Common (80%) |
+| **Style/layout changes** | Only baseline images | Common |
+| **Add new test scenario** | 1 new fixture file | Occasional |
+| **Modify component props** | Batch find-replace in fixtures | Rare |
+| **Change Context structure** | All fixture files | Very rare |
 
-**Key insight:** Most changes (80%) only require updating baseline images - just 1-2 minutes to review and approve visual changes!
+**Key insight:** Most changes (80%) only require updating baseline images—typically just a quick review before approving visual changes!
 
 ### Real-world Example: One Year of Maintenance
 
 Let's track a SettingsDialog component over one year:
 
-| Month | Change | Maintenance Time |
-|-------|--------|------------------|
-| **Month 0** | Initial setup (7 scenarios) | 1-2 hours |
-| Month 1 | Added 5 new settings | 5 minutes |
-| Month 2 | Updated colors and spacing | 2 minutes |
-| Month 3 | Added theme support (3 new tests) | 20 minutes |
-| Month 5 | Changed font size | 2 minutes |
-| Month 7 | Added ThemeProvider (breaking change) | 20 minutes |
-| Month 9 | Added 10 more settings | 5 minutes |
-| Month 11 | Redesigned layout | 5 minutes |
+| Month | Change |
+|-------|--------|
+| **Month 0** | Initial setup (7 scenarios) |
+| Month 1 | Added 5 new settings |
+| Month 2 | Updated colors and spacing |
+| Month 3 | Added theme support (3 new tests) |
+| Month 5 | Changed font size |
+| Month 7 | Added ThemeProvider (breaking change) |
+| Month 9 | Added 10 more settings |
+| Month 11 | Redesigned layout |
 
-**Total:**
-- Initial investment: 1-2 hours
-- Annual maintenance: ~59 minutes
-- **Average per month: ~5 minutes**
-
-**Compare with manual testing:**
-- 8 changes × 7 test scenarios × 15 minutes each = **14 hours of manual testing**
-
-**Visual testing saves ~13 hours per year!**
+**Takeaway:** Ongoing work centers on reviewing updated screenshots and occasionally adding new fixtures. Visual testing keeps regressions visible without significant manual effort.
 
 ### Why "One-time Setup, Continuous Benefits"?
 
@@ -521,11 +513,11 @@ You only add new tests when adding new scenarios.
 
 #### 2. Fixtures Rarely Change
 Most UI changes don't require fixture modifications:
-- ✅ Adding new UI elements: No fixture changes needed
-- ✅ Changing colors/styles: No fixture changes needed
-- ✅ Modifying layout: No fixture changes needed
-- ⚠️ Changing component API: Quick batch find-replace
-- ⚠️ Adding Context Providers: One-time update to all fixtures
+- Adding new UI elements: No fixture changes needed
+- Changing colors/styles: No fixture changes needed
+- Modifying layout: No fixture changes needed
+- Changing component API: Quick batch find-replace
+- Adding Context Providers: One-time update to all fixtures
 
 #### 3. Baseline Updates Are Fast
 ```bash
