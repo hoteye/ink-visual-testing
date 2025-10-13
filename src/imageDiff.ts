@@ -14,7 +14,11 @@ export async function comparePng(
   const baseline = PNG.sync.read(fs.readFileSync(baselinePath));
 
   if (actual.width !== baseline.width || actual.height !== baseline.height) {
-    throw new Error('Image dimensions differ between actual and baseline.');
+    throw new Error(
+      `Image dimensions differ between actual and baseline.\n` +
+      `  Actual: ${actual.width}x${actual.height}\n` +
+      `  Baseline: ${baseline.width}x${baseline.height}`
+    );
   }
 
   const diff = new PNG({ width: actual.width, height: actual.height });

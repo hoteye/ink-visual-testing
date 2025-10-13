@@ -1,9 +1,7 @@
 import React from 'react';
 import path from 'node:path';
 import fs from 'node:fs';
-import { render } from 'ink';
 import { execSync } from 'node:child_process';
-import type { CompareOptions } from './types.js';
 
 export interface VisualTestOptions {
   /** Terminal columns (default: 80) */
@@ -23,27 +21,42 @@ export interface VisualTestOptions {
 /**
  * 开箱即用的视觉回归测试
  *
+ * 支持两种模式：
+ * 1. 简单模式：传入 React 元素（仅支持内置 HTML 元素，如 <Text>、<Box>）
+ * 2. 文件模式：传入渲染文件路径（支持复杂组件和 Context Provider）
+ *
  * @example
+ * // 模式 1: 简单组件（直接传入 JSX）
  * ```typescript
  * import { visualTest } from 'ink-visual-testing';
- * import { MyComponent } from './MyComponent';
+ * import { Text, Box } from 'ink';
  *
- * describe('MyComponent', () => {
- *   it('should match baseline', async () => {
- *     const mockData = { name: 'Test', count: 42 };
+ * await visualTest('simple', <Box><Text>Hello</Text></Box>);
+ * ```
  *
- *     await visualTest('my-component', <MyComponent data={mockData} />, {
- *       cols: 80,
- *       rows: 24,
- *       maxDiffPixels: 100
- *     });
- *   });
- * });
+ * @example
+ * // 模式 2: 复杂组件（传入文件路径）
+ * ```typescript
+ * // 创建文件：tests/fixtures/settings-dialog.tsx
+ * import React from 'react';
+ * import { render } from 'ink';
+ * import { VimModeProvider } from './contexts/VimModeProvider.js';
+ * import { SettingsDialog } from './components/SettingsDialog.js';
+ *
+ * const settings = createMockSettings();
+ * render(
+ *   <VimModeProvider>
+ *     <SettingsDialog settings={settings} onSelect={() => {}} />
+ *   </VimModeProvider>
+ * );
+ *
+ * // 测试文件
+ * await visualTest('settings', './tests/fixtures/settings-dialog.tsx');
  * ```
  */
 export async function visualTest(
   name: string,
-  component: React.ReactElement,
+  componentOrPath: React.ReactElement | string,
   options: VisualTestOptions = {}
 ): Promise<void> {
   const {
@@ -59,28 +72,71 @@ export async function visualTest(
   const outputPath = path.resolve(`tests/__output__/${name}.png`);
   const baselinePath = path.resolve(`tests/__baselines__/${name}.png`);
   const diffPath = path.resolve(`tests/__diff__/${name}.png`);
-  const tempCliPath = path.resolve(`tests/__temp__/${name}-cli.tsx`);
 
   // 创建目录
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.mkdirSync(path.dirname(baselinePath), { recursive: true });
   fs.mkdirSync(path.dirname(diffPath), { recursive: true });
-  fs.mkdirSync(path.dirname(tempCliPath), { recursive: true });
 
-  // 生成临时 CLI 文件
-  const cliContent = `
+  let tempCliPath: string | null = null;
+  let tempRenderScript: string | null = null;
+
+  try {
+    // 模式检测：字符串 = 文件路径模式，React 元素 = 组件模式
+    if (typeof componentOrPath === 'string') {
+      // 文件路径模式 - 直接使用提供的渲染文件
+      const renderFilePath = path.resolve(componentOrPath);
+
+      if (!fs.existsSync(renderFilePath)) {
+        throw new Error(
+          `渲染文件不存在: ${renderFilePath}\n` +
+          `请创建该文件并导出要渲染的组件`
+        );
+      }
+
+      tempRenderScript = path.resolve(`tests/__temp__/${name}-render.mjs`);
+      fs.mkdirSync(path.dirname(tempRenderScript), { recursive: true });
+
+      const renderScriptContent = `
+import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
+
+await fixedPtyRender(
+  '${renderFilePath}',
+  '${outputPath}',
+  {
+    ...getCIOptimizedConfig(),
+    cols: ${cols},
+    rows: ${rows},
+    backgroundColor: '${backgroundColor}'
+  }
+);
+`.trim();
+
+      fs.writeFileSync(tempRenderScript, renderScriptContent);
+
+      console.log(`📸 生成快照: ${name} (文件模式)`);
+      execSync(`npx tsx ${tempRenderScript}`, {
+        cwd: process.cwd(),
+        stdio: 'inherit'
+      });
+
+    } else {
+      // 组件模式 - 序列化组件为临时文件
+      tempCliPath = path.resolve(`tests/__temp__/${name}-cli.tsx`);
+      fs.mkdirSync(path.dirname(tempCliPath), { recursive: true });
+
+      const cliContent = `
 import React from 'react';
 import { render } from 'ink';
 
-const component = ${componentToString(component)};
+const component = ${componentToString(componentOrPath)};
 render(component);
 `.trim();
 
-  fs.writeFileSync(tempCliPath, cliContent);
+      fs.writeFileSync(tempCliPath, cliContent);
 
-  // 创建临时渲染脚本
-  const tempRenderScript = path.resolve(`tests/__temp__/${name}-render.mjs`);
-  const renderScriptContent = `
+      tempRenderScript = path.resolve(`tests/__temp__/${name}-render.mjs`);
+      const renderScriptContent = `
 import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
 
 await fixedPtyRender(
@@ -95,15 +151,17 @@ await fixedPtyRender(
 );
 `.trim();
 
-  fs.writeFileSync(tempRenderScript, renderScriptContent);
+      fs.writeFileSync(tempRenderScript, renderScriptContent);
 
-  try {
-    // 生成快照
-    console.log(`📸 生成快照: ${name}`);
-    execSync(`npx tsx ${tempRenderScript}`, {
-      cwd: process.cwd(),
-      stdio: 'inherit'
-    });
+      console.log(`📸 生成快照: ${name} (组件模式)`);
+      console.log(`⚠️  注意: 组件模式仅支持内置元素 (Text, Box 等)`);
+      console.log(`   如需使用自定义组件或 Context Provider，请使用文件路径模式`);
+
+      execSync(`npx tsx ${tempRenderScript}`, {
+        cwd: process.cwd(),
+        stdio: 'inherit'
+      });
+    }
 
     // 检查 baseline 是否存在
     if (!fs.existsSync(baselinePath)) {
@@ -140,16 +198,18 @@ await fixedPtyRender(
 
   } finally {
     // 清理临时文件
-    const tempRenderScript = path.resolve(`tests/__temp__/${name}-render.mjs`);
-    if (fs.existsSync(tempCliPath)) {
+    if (tempCliPath && fs.existsSync(tempCliPath)) {
       fs.unlinkSync(tempCliPath);
     }
-    if (fs.existsSync(tempRenderScript)) {
+    if (tempRenderScript && fs.existsSync(tempRenderScript)) {
       fs.unlinkSync(tempRenderScript);
     }
     // 清理临时目录（如果为空）
     try {
-      fs.rmdirSync(path.dirname(tempCliPath));
+      const tempDir = path.resolve('tests/__temp__');
+      if (fs.existsSync(tempDir)) {
+        fs.rmdirSync(tempDir);
+      }
     } catch (e) {
       // 目录不为空，忽略
     }
@@ -158,6 +218,9 @@ await fixedPtyRender(
 
 /**
  * 将 React 元素序列化为字符串
+ *
+ * ⚠️ 限制：仅支持内置字符串类型元素（如 'Text', 'Box'）
+ * 对于函数组件，将只输出组件名称字符串，这会导致渲染失败
  */
 function componentToString(element: React.ReactElement): string {
   const { type, props } = element;
@@ -168,23 +231,13 @@ function componentToString(element: React.ReactElement): string {
     componentName = type;
   } else if (typeof type === 'function') {
     componentName = type.name || 'Anonymous';
+    console.warn(
+      `⚠️  警告: 检测到函数组件 "${componentName}"，组件模式仅支持内置元素\n` +
+      `   建议使用文件路径模式来渲染自定义组件`
+    );
   } else {
     throw new Error('不支持的组件类型');
   }
-
-  // 序列化 props
-  const propsString = Object.entries(props || {})
-    .filter(([key]) => key !== 'children')
-    .map(([key, value]) => {
-      if (typeof value === 'string') {
-        return `${key}="${value}"`;
-      } else if (typeof value === 'number' || typeof value === 'boolean') {
-        return `${key}={${value}}`;
-      } else {
-        return `${key}={${JSON.stringify(value)}}`;
-      }
-    })
-    .join(' ');
 
   // 处理 children
   const { children } = props;
