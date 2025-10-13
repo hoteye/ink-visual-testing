@@ -17,6 +17,7 @@ coverage/
 # Temporary and debug files
 *.png
 !tests/__baselines__/*.png
+!examples/real-world-integration/example-output.png
 
 # IDE
 .vscode/
