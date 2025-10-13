@@ -142,6 +142,159 @@ Or use an npm script:
 }
 ```
 
+### 6. Understanding Test Failures
+
+When visual tests fail, it means the UI output differs from the baseline. This catches both intentional and unintentional changes.
+
+#### Example: Detecting Unintended Changes
+
+Consider a SettingsDialog where someone accidentally modified settings values:
+
+```tsx
+// Original fixture (created baseline)
+const mockSettings = {
+  general: { vimMode: true }
+};
+
+// Modified fixture (someone changed vimMode to false and added settings)
+const mockSettings = {
+  general: {
+    vimMode: false,          // ← Changed!
+    disableAutoUpdate: true,  // ← Added!
+    debugKeystrokeLogging: true // ← Added!
+  }
+};
+```
+
+**Test output:**
+```bash
+❯ npm test
+
+ FAIL  tests/SettingsDialog.visual.test.tsx
+   × should render default settings dialog
+     → PNG diff exceeded tolerance: 777 pixels differ (allowed 500).
+        Diff saved to tests/__diff__/settings-dialog-default.png
+
+ Test Files  1 failed (1)
+```
+
+**What happens:**
+
+1. **Baseline image**: Shows original UI with `vimMode: true`
+2. **Current output**: Shows modified UI with `vimMode: false` and extra settings
+3. **Diff image**: Highlights the differences in yellow/orange:
+   - "Disable Auto Update (Modified in System)" - highlighted
+   - "Debug Keystroke Logging (Modified in System)" - highlighted
+
+The test fails with a clear message: `777 pixels differ (allowed 500)`, pinpointing exactly how many pixels changed.
+
+**How to resolve:**
+
+1. **If change was unintentional (bug):**
+   ```bash
+   # Fix the code to match the baseline
+   git diff src/components/SettingsDialog.tsx
+   # Revert the changes
+   ```
+
+2. **If change was intentional (feature):**
+   ```bash
+   # Review the diff image
+   open tests/__diff__/settings-dialog-default.png
+
+   # If correct, update baseline
+   cp tests/__output__/settings-dialog-default.png tests/__baselines__/
+
+   # Commit the new baseline
+   git add tests/__baselines__/
+   git commit -m "Update baseline after adding new settings"
+   ```
+
+**Key insight:** The diff image makes it obvious what changed, helping you decide if it's a bug or an intentional improvement!
+
+#### Real Failure Examples
+
+Let's examine two concrete scenarios where visual tests catch problems:
+
+**Example 1: Content Difference - Text Changed**
+
+Someone modified the file count in a success message:
+
+```tsx
+// Baseline fixture
+<Text dimColor>
+  Files processed: 10
+</Text>
+
+// Modified fixture (accidentally changed)
+<Text dimColor>
+  Files processed: 25 (DIFFERENT!)
+</Text>
+```
+
+**Test output:**
+```bash
+❯ npm test
+
+ FAIL  tests/VisualFailure.demo.test.tsx
+   × should detect content difference (extra text)
+     → PNG diff exceeded tolerance: 299 pixels differ (allowed 100).
+        Diff saved to tests/__diff__/message-box-content.png
+```
+
+**Visual comparison:**
+- **Baseline**: Shows "Files processed: 10"
+- **Output**: Shows "Files processed: 25 (DIFFERENT!)"
+- **Diff**: Highlights "25 (DIFFERENT!)" in red/yellow - clearly showing the text change
+
+**299 pixels changed** because the characters "25 (DIFFERENT!)" replaced "10", affecting approximately that many pixels.
+
+---
+
+**Example 2: Color Difference - Styling Changed**
+
+Someone changed the color of a status indicator from yellow to cyan:
+
+```tsx
+// Baseline fixture
+<Text bold color="yellow">
+  Active
+</Text>
+
+// Modified fixture (color accidentally changed)
+<Text bold color="cyan">
+  Active
+</Text>
+```
+
+**Test output:**
+```bash
+❯ npm test
+
+ FAIL  tests/VisualFailure.demo.test.tsx
+   × should detect color difference (cyan vs yellow)
+     → PNG diff exceeded tolerance: 178 pixels differ (allowed 50).
+        Diff saved to tests/__diff__/status-box-color.png
+```
+
+**Visual comparison:**
+- **Baseline**: "Active" rendered in yellow color
+- **Output**: "Active" rendered in cyan color
+- **Diff**: Highlights the entire word "Active" in red - showing every pixel of the word changed color
+
+**178 pixels changed** because each character pixel in "Active" has a different RGB value (yellow vs cyan).
+
+---
+
+#### Understanding Diff Colors
+
+The diff image uses these colors:
+- **Gray background**: Identical pixels (darkened for contrast)
+- **Yellow/Orange**: Small differences (anti-aliasing, slight shifts)
+- **Red**: Significant differences (different text, different colors)
+
+**More red/yellow = more pixels changed = larger visual difference**
+
 ## Best Practices
 
 ### ⚠️ Key Points
@@ -240,6 +393,208 @@ your-project/
 │   ├── __output__/             # Test output (Git ignore)
 │   └── __diff__/               # Diff images (Git ignore)
 └── package.json
+```
+
+## Maintenance & Long-term Benefits
+
+### Initial Setup Effort
+
+The effort required depends on component complexity:
+
+#### Simple Components (No Context Dependencies)
+
+**Example:** Basic message box without Context Providers
+
+```tsx
+// tests/fixtures/simple-message.tsx
+import React from 'react';
+import { render, Box, Text } from 'ink';
+
+render(
+  <Box borderStyle="round" padding={1}>
+    <Text>Success!</Text>
+  </Box>
+);
+```
+
+```tsx
+// tests/SimpleMessage.visual.test.tsx
+import { visualTest } from 'ink-visual-testing';
+
+it('renders simple message', async () => {
+  await visualTest('simple-message', './tests/fixtures/simple-message.tsx', {
+    cols: 80, rows: 20
+  });
+});
+```
+
+**Effort:** ~33 lines of code, **5-10 minutes**
+
+#### Complex Components (With Context Providers)
+
+**Example:** Settings dialog with VimModeProvider and KeypressProvider
+
+```tsx
+// tests/fixtures/settings-dialog-default.tsx
+import { useEffect } from 'react';
+import { render } from 'ink';
+import { SettingsDialog } from '../../src/components/SettingsDialog.js';
+import { VimModeProvider } from '../../src/contexts/VimModeContext.js';
+import { KeypressProvider } from '../../src/contexts/KeypressContext.js';
+
+const mockSettings = createMockSettings({
+  general: { vimMode: true }
+});
+
+const SettingsDialogWrapper = () => {
+  useEffect(() => {
+    const timer = setTimeout(() => process.exit(0), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return <SettingsDialog settings={mockSettings} onSelect={() => {}} />;
+};
+
+const { unmount } = render(
+  <VimModeProvider settings={mockSettings}>
+    <KeypressProvider kittyProtocolEnabled={false}>
+      <SettingsDialogWrapper />
+    </KeypressProvider>
+  </VimModeProvider>
+);
+
+process.on('SIGINT', () => {
+  unmount();
+  process.exit(0);
+});
+```
+
+**Effort for 7 test scenarios:** ~483 lines of code, **1-2 hours**
+
+But this is a **one-time investment** with continuous benefits!
+
+### Maintenance Cost When Components Change
+
+| Change Type | What to Update | Time Required | Frequency |
+|------------|----------------|---------------|-----------|
+| **Add new option/feature** | Only baseline images | 1-2 min | Common (80%) |
+| **Style/layout changes** | Only baseline images | 1-2 min | Common |
+| **Add new test scenario** | 1 new fixture file | 5-7 min | Occasional |
+| **Modify component props** | Batch find-replace in fixtures | 5-10 min | Rare |
+| **Change Context structure** | All fixture files | 15-20 min | Very rare |
+
+**Key insight:** Most changes (80%) only require updating baseline images - just 1-2 minutes to review and approve visual changes!
+
+### Real-world Example: One Year of Maintenance
+
+Let's track a SettingsDialog component over one year:
+
+| Month | Change | Maintenance Time |
+|-------|--------|------------------|
+| **Month 0** | Initial setup (7 scenarios) | 1-2 hours |
+| Month 1 | Added 5 new settings | 5 minutes |
+| Month 2 | Updated colors and spacing | 2 minutes |
+| Month 3 | Added theme support (3 new tests) | 20 minutes |
+| Month 5 | Changed font size | 2 minutes |
+| Month 7 | Added ThemeProvider (breaking change) | 20 minutes |
+| Month 9 | Added 10 more settings | 5 minutes |
+| Month 11 | Redesigned layout | 5 minutes |
+
+**Total:**
+- Initial investment: 1-2 hours
+- Annual maintenance: ~59 minutes
+- **Average per month: ~5 minutes**
+
+**Compare with manual testing:**
+- 8 changes × 7 test scenarios × 15 minutes each = **14 hours of manual testing**
+
+**Visual testing saves ~13 hours per year!**
+
+### Why "One-time Setup, Continuous Benefits"?
+
+#### 1. Test Files Never Change
+The test logic remains stable:
+```tsx
+await visualTest('component-name', './fixtures/component.tsx', options);
+```
+You only add new tests when adding new scenarios.
+
+#### 2. Fixtures Rarely Change
+Most UI changes don't require fixture modifications:
+- ✅ Adding new UI elements: No fixture changes needed
+- ✅ Changing colors/styles: No fixture changes needed
+- ✅ Modifying layout: No fixture changes needed
+- ⚠️ Changing component API: Quick batch find-replace
+- ⚠️ Adding Context Providers: One-time update to all fixtures
+
+#### 3. Baseline Updates Are Fast
+```bash
+# Run tests to see what changed
+npm test
+
+# If changes look correct, update baselines
+cp tests/__output__/*.png tests/__baselines__/
+
+# Commit the updates
+git add tests/__baselines__/
+git commit -m "Update baselines after adding dark mode"
+```
+
+This takes **1-2 minutes** vs. 15+ minutes of manual testing!
+
+#### 4. Automated Regression Detection
+Once set up, every PR automatically checks for visual regressions:
+- Catches unintended UI changes
+- Prevents layout bugs
+- Ensures consistent rendering across environments
+- No manual testing needed
+
+### Tips for Minimizing Maintenance
+
+**1. Reuse Mock Data**
+```tsx
+// tests/mocks/settings.ts
+export const defaultSettings = createMockSettings({ ... });
+export const vimEnabledSettings = createMockSettings({ general: { vimMode: true } });
+
+// In fixtures, just import and use
+import { defaultSettings } from '../mocks/settings';
+```
+
+**2. Use a Fixture Template**
+Create a base fixture and copy/modify for new scenarios:
+```tsx
+// tests/fixtures/_template.tsx
+import { useEffect } from 'react';
+import { render } from 'ink';
+import { MyComponent } from '../../src/MyComponent';
+import { AllNecessaryProviders } from './providers';
+
+const FixtureWrapper = () => {
+  useEffect(() => {
+    const timer = setTimeout(() => process.exit(0), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return <MyComponent {...mockProps} />;
+};
+
+render(
+  <AllNecessaryProviders>
+    <FixtureWrapper />
+  </AllNecessaryProviders>
+);
+```
+
+**3. Automate Baseline Updates**
+```json
+{
+  "scripts": {
+    "test:visual": "vitest --run tests/*.visual.test.tsx",
+    "baseline:update": "cp tests/__output__/*.png tests/__baselines__/",
+    "baseline:review": "open tests/__output__/*.png"
+  }
+}
 ```
 
 ## Advanced Usage
