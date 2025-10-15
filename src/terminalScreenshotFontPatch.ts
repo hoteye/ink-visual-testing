@@ -188,6 +188,20 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
         <div id="terminal"></div>
 
         <script>
+            const resolveUnicode11Ctor = () => {
+                const globalRef = (typeof Unicode11Addon !== 'undefined') ? Unicode11Addon : undefined;
+                if (!globalRef) {
+                    return undefined;
+                }
+                if (typeof globalRef === 'function') {
+                    return globalRef;
+                }
+                if (typeof globalRef === 'object' && typeof globalRef.Unicode11Addon === 'function') {
+                    return globalRef.Unicode11Addon;
+                }
+                return undefined;
+            };
+
             const startTerminal = () => {
                 const terminal = new Terminal({
                     theme: { background: "${options.backgroundColor}" },
@@ -199,12 +213,20 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
 
                 terminal.open(document.getElementById('terminal'));
 
-                // Load Unicode 11 addon for proper emoji width support
-                console.log('[ink-visual-testing] Loading Unicode 11 addon');
-                const unicode11 = new Unicode11Addon();
-                terminal.loadAddon(unicode11);
-                terminal.unicode.activeVersion = '11';
-                console.log('[ink-visual-testing] Active Unicode version:', terminal.unicode.activeVersion);
+                const Unicode11Ctor = resolveUnicode11Ctor();
+                if (Unicode11Ctor) {
+                    try {
+                        console.log('[ink-visual-testing] Loading Unicode 11 addon');
+                        const unicode11 = new Unicode11Ctor();
+                        terminal.loadAddon(unicode11);
+                        terminal.unicode.activeVersion = '11';
+                        console.log('[ink-visual-testing] Active Unicode version:', terminal.unicode.activeVersion);
+                    } catch (error) {
+                        console.warn('[ink-visual-testing] Failed to initialize Unicode11 addon:', error);
+                    }
+                } else {
+                    console.warn('[ink-visual-testing] Unicode11 addon not available; continuing without it');
+                }
 
                 terminal.write(${JSON.stringify(options.data)});
             };
