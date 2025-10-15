@@ -71,9 +71,7 @@ export function getCIOptimizedConfig(
     emojiFontFamily: emojiOption?.family,
     baseFontPath: useBundledBase ? bundledBase.path : undefined,
     baseFontFamily: useBundledBase ? bundledBase.family : undefined,
-    fontFamily: useBundledBase
-      ? `${bundledBase.family}, DejaVu Sans Mono, monospace`
-      : 'DejaVu Sans Mono, monospace',
+    fontFamily: 'DejaVu Sans Mono, monospace',
     timeout: 60000,
     margin: 12,
     backgroundColor: '#000000'
@@ -174,7 +172,9 @@ export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Pr
     emojiFontPath,
     emojiFontFamily,
     baseFontPath,
-    baseFontFamily
+    baseFontFamily,
+    cols,
+    rows
   };
 
   const fontStackForLogParts = [];
@@ -236,7 +236,9 @@ export async function fixedPtyRender(
     fontFamily,
     type,
     emojiFontPath,
-    emojiFontFamily
+    emojiFontFamily,
+    baseFontPath,
+    baseFontFamily
   } = options;
 
   await createSnapshotFromPty({
@@ -251,6 +253,8 @@ export async function fixedPtyRender(
     fontFamily,
     type,
     emojiFontPath,
-    emojiFontFamily
+    emojiFontFamily,
+    baseFontPath,
+    baseFontFamily
   });
 }
