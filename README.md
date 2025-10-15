@@ -363,7 +363,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libnss3 libatk1.0-0 libgbm1 fonts-dejavu-core
+          sudo apt-get install -y libnss3 libatk1.0-0 libgbm1
 
       - run: npm ci
       - run: npm test
@@ -387,11 +387,13 @@ jobs:
 - **Share a snapshot config** – Define a single object that freezes every dimension-sensitive option (`cols`, `rows`, `margin`, `fontFamily`, `emojiFontKey`) and reuse it in all tests and in CI:
   ```ts
   const sharedSnapshotConfig = {
-    ...getCIOptimizedConfig(),
+    ...getCIOptimizedConfig({
+      baseFont: 'bundled',
+      emojiFontKey: 'system',
+    }),
     cols: 80,
     rows: 24,
     margin: 12,
-    fontFamily: 'DejaVu Sans Mono, Consolas, monospace',
   } satisfies Partial<NodePtySnapshotOptions>;
   ```
   Then spread `sharedSnapshotConfig` into every `createSnapshotFromPty` call.
