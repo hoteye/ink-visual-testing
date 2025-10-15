@@ -101,19 +101,23 @@ const visualTest = async (
     cols?: number;
     rows?: number;
     emojiFontKey?: string;
+    baseFont?: 'bundled' | 'system';
   } = {}
 ) => {
   const {
     cols = 120,
     rows = 40,
-    emojiFontKey = 'system'  // Use 'system' for better compatibility
+    emojiFontKey = 'system',
+    baseFont = 'bundled'     // Keep snapshots stable across machines
   } = options;
 
   // Get optimized configuration
   const config = {
-    ...getCIOptimizedConfig(emojiFontKey),
+    ...getCIOptimizedConfig({
+      emojiFontKey,
+      baseFont,
+    }),
     backgroundColor: '#000000',
-    fontFamily: 'DejaVu Sans Mono, Consolas, monospace',
     margin: 20,
   };
 
@@ -223,7 +227,10 @@ describe('MyComponent Visual Tests', () => {
       command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
       args: ['tsx', 'render-my-component.tsx'],
       outputPath: 'tests/__visual_output__/my-component-default.png',
-      ...getCIOptimizedConfig('system'),
+      ...getCIOptimizedConfig({
+        emojiFontKey: 'system',
+        baseFont: 'bundled',
+      }),
       cols: 120,
       rows: 40,
       timeout: 60000,
@@ -240,14 +247,17 @@ npm test -- MyComponent.visual.test.tsx
 
 ## 📝 Best Practices
 
-### 1. Use System Fonts for Better Compatibility
+### 1. Control Base Fonts Explicitly
 
 ```typescript
-// ✅ Good: Works in most environments including WSL
-emojiFontKey: 'system'
+// ✅ Default: bundled DejaVu keeps CI/local identical
+getCIOptimizedConfig();
 
-// ⚠️ May not work: Bundled fonts can fail in WSL/CI
-emojiFontKey: 'mono'
+// 🔁 Opt-in: rely on runner fonts (pre-v0.1.19 behaviour)
+getCIOptimizedConfig({ baseFont: 'system' });
+
+// 🎨 Pick a different emoji font while retaining the bundled base
+getCIOptimizedConfig({ emojiFontKey: 'mono' });
 ```
 
 ### 2. Set Appropriate Timeouts
@@ -339,15 +349,16 @@ cols: 160, rows: 60
 ### Problem: Black/Empty Screenshots
 
 **Possible causes:**
-1. Bundled emoji fonts not loading in WSL environment
+1. Missing base fonts (when using `baseFont: 'system'`) or bundled emoji fonts failing to load
 2. Component crashing during render
 3. PTY timeout too short
 
 **Solutions:**
-1. Use `emojiFontKey: 'system'` instead of `'mono'` or `'color'`
-2. Test your render script manually: `npx tsx render-my-component.tsx`
-3. Increase timeout: `timeout: 60000` or higher
-4. Check console output for errors in PTY capture
+1. Stick with the default `baseFont: 'bundled'` or install an extra monospace font when opting into `baseFont: 'system'`
+2. Switch to `emojiFontKey: 'system'` if emoji fonts fail to load in your environment
+3. Test your render script manually: `npx tsx render-my-component.tsx`
+4. Increase timeout: `timeout: 60000` or higher
+5. Check console output for errors in PTY capture
 
 ### Problem: Layout Mismatch
 

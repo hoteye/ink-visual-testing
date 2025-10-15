@@ -54,19 +54,23 @@ const visualTest = async (
     cols?: number;
     rows?: number;
     emojiFontKey?: string;
+    baseFont?: 'bundled' | 'system';
   } = {}
 ) => {
   const {
     cols = 120,
     rows = 40,
-    emojiFontKey = 'system'  // Use system fonts to avoid emoji font patch issues
+    emojiFontKey = 'system',
+    baseFont = 'bundled'
   } = options;
 
   // Get optimized configuration for WSL environment
   const config = {
-    ...getCIOptimizedConfig(emojiFontKey),
+    ...getCIOptimizedConfig({
+      emojiFontKey,
+      baseFont,
+    }),
     backgroundColor: '#000000', // Use black background to match terminal
-    fontFamily: 'DejaVu Sans Mono, Consolas, monospace', // Better font for box drawing
     margin: 20, // Increase margin for better visibility
   };
 

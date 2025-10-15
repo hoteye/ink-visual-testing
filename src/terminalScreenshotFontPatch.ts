@@ -8,12 +8,14 @@ const templateModule = require('terminal-screenshot/out/src/template.js');
 const fs = require('fs/promises');
 const originalGenerateTemplate = templateModule.generateTemplate as (options: any) => Promise<string>;
 
-interface EmojiFontConfig {
-  emojiFontPath: string;
-  emojiFontFamily: string;
+interface SnapshotFontConfig {
+  emojiFontPath?: string;
+  emojiFontFamily?: string;
+  baseFontPath?: string;
+  baseFontFamily?: string;
 }
 
-let currentEmojiFont: EmojiFontConfig | undefined;
+let currentFontConfig: SnapshotFontConfig | undefined;
 
 const GENERIC_FONT_FAMILIES = new Set([
   'serif',
@@ -41,7 +43,11 @@ function measureLength(data: string): number {
   return stringWidth(stripped);
 }
 
-function normaliseFamilies(baseFamily: string, emojiFamily?: string): string[] {
+function normaliseFamilies(
+  baseFamily: string,
+  emojiFamily?: string,
+  bundledBaseFamily?: string
+): string[] {
   const families = baseFamily
     .split(',')
     .map(family => family.trim())
@@ -53,6 +59,11 @@ function normaliseFamilies(baseFamily: string, emojiFamily?: string): string[] {
   if (emojiFamily && !seen.has(emojiFamily)) {
     ordered.push(emojiFamily);
     seen.add(emojiFamily);
+  }
+
+  if (bundledBaseFamily && !seen.has(bundledBaseFamily)) {
+    ordered.push(bundledBaseFamily);
+    seen.add(bundledBaseFamily);
   }
 
   for (const family of families) {
@@ -82,26 +93,27 @@ function buildFontLoadPromise(families: string[]): string {
   return `Promise.all([${loaders.join(', ')}])`;
 }
 
-export async function withEmojiFontConfig<T>(config: EmojiFontConfig | undefined, fn: () => Promise<T>): Promise<T> {
-  if (!config) {
+export async function withEmojiFontConfig<T>(config: SnapshotFontConfig | undefined, fn: () => Promise<T>): Promise<T> {
+  if (!config || (!config.emojiFontPath && !config.baseFontPath)) {
     return fn();
   }
 
-  currentEmojiFont = config;
+  currentFontConfig = config;
   try {
     return await fn();
   } finally {
-    currentEmojiFont = undefined;
+    currentFontConfig = undefined;
   }
 }
 
 templateModule.generateTemplate = async function patchedGenerateTemplate(options: any) {
-  if (!currentEmojiFont) {
+    if (!currentFontConfig) {
     return originalGenerateTemplate(options);
   }
 
-  const { emojiFontPath, emojiFontFamily } = currentEmojiFont;
-  const absoluteEmojiPath = path.resolve(emojiFontPath);
+  const { emojiFontPath, emojiFontFamily, baseFontPath, baseFontFamily } = currentFontConfig;
+  const absoluteEmojiPath = emojiFontPath ? path.resolve(emojiFontPath) : undefined;
+  const absoluteBaseFontPath = baseFontPath ? path.resolve(baseFontPath) : undefined;
 
   // Don't dynamically calculate cols - use what was passed from the PTY
   // The PTY was spawned with specific cols/rows, and we should match that
@@ -125,10 +137,11 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
 
   console.log(`[terminalScreenshotFontPatch] Using terminal size: ${terminalColumns} cols × ${terminalRows} rows`);
 
-  const fontFamilies = normaliseFamilies(options.fontFamily, emojiFontFamily);
+  const fontFamilies = normaliseFamilies(options.fontFamily, emojiFontFamily, baseFontFamily);
   const fontStack = fontFamilies.map(quoteFamily).join(', ');
   const fontStackEscaped = fontStack.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  const emojiFamilyEscaped = emojiFontFamily.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const emojiFamilyEscaped = emojiFontFamily?.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const baseFamilyEscaped = baseFontFamily?.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const loadFonts = buildFontLoadPromise(fontFamilies);
 
   // Convert local file paths to file:// URLs for Puppeteer
@@ -145,10 +158,14 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
         <style>
-            @font-face {
+            ${emojiFontPath ? `@font-face {
                 font-family: "${emojiFamilyEscaped}";
-                src: url('${url.pathToFileURL(absoluteEmojiPath).href}');
-            }
+                src: url('${url.pathToFileURL(absoluteEmojiPath!).href}');
+            }` : ''}
+            ${baseFontPath ? `@font-face {
+                font-family: "${baseFamilyEscaped}";
+                src: url('${url.pathToFileURL(absoluteBaseFontPath!).href}');
+            }` : ''}
             body {
                 margin: ${options.margin}px;
                 background-color: ${options.backgroundColor};

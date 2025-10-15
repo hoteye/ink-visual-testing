@@ -5,6 +5,7 @@ import { spawn } from 'node-pty';
 import { renderScreenshot } from 'terminal-screenshot';
 import { withEmojiFontConfig } from './terminalScreenshotFontPatch.js';
 import { getEmojiFontPath, EMOJI_FONT_OPTIONS } from './emojiFonts.js';
+import { getBundledBaseFont } from './baseFont.js';
 
 // Re-export emoji font utilities
 export { getEmojiFontPath, EMOJI_FONT_OPTIONS };
@@ -32,28 +33,49 @@ export type { VisualTestOptions } from './visualTest.js';
  *   'my-cli.tsx',
  *   'output.png',
  *   {
- *     ...getCIOptimizedConfig(), // Uses system fonts by default
+ *     ...getCIOptimizedConfig(), // Uses bundled DejaVu Sans Mono by default
  *     cols: 120,
  *     rows: 60
  *   }
  * );
  * ```
  */
-export function getCIOptimizedConfig(emojiFontKey: string = 'system'): Partial<NodePtySnapshotOptions> {
+type BaseFontMode = 'bundled' | 'system';
+
+export interface CIOptimizedConfigOptions {
+  emojiFontKey?: string;
+  baseFont?: BaseFontMode;
+}
+
+export function getCIOptimizedConfig(
+  optionsOrEmojiKey?: string | CIOptimizedConfigOptions
+): Partial<NodePtySnapshotOptions> {
+  let emojiFontKey = 'system';
+  let baseFont: BaseFontMode = 'bundled';
+
+  if (typeof optionsOrEmojiKey === 'string') {
+    emojiFontKey = optionsOrEmojiKey;
+  } else if (optionsOrEmojiKey) {
+    emojiFontKey = optionsOrEmojiKey.emojiFontKey ?? emojiFontKey;
+    baseFont = optionsOrEmojiKey.baseFont ?? baseFont;
+  }
+
   const emojiFontPath = emojiFontKey === 'system' ? undefined : getEmojiFontPath(emojiFontKey);
-  const option = EMOJI_FONT_OPTIONS[emojiFontKey];
+  const emojiOption = EMOJI_FONT_OPTIONS[emojiFontKey];
+
+  const bundledBase = getBundledBaseFont();
+  const useBundledBase = baseFont === 'bundled';
 
   return {
-    // Use bundled emoji font only if explicitly requested
     emojiFontPath,
-    emojiFontFamily: option?.family,
-    // Standard font family available in most CI environments
-    fontFamily: 'DejaVu Sans Mono, monospace',
-    // Longer timeout for CI (which can be slower)
+    emojiFontFamily: emojiOption?.family,
+    baseFontPath: useBundledBase ? bundledBase.path : undefined,
+    baseFontFamily: useBundledBase ? bundledBase.family : undefined,
+    fontFamily: useBundledBase
+      ? `${bundledBase.family}, DejaVu Sans Mono, monospace`
+      : 'DejaVu Sans Mono, monospace',
     timeout: 60000,
-    // Standard margin
     margin: 12,
-    // Black background (most common)
     backgroundColor: '#000000'
   };
 }
@@ -71,6 +93,8 @@ export interface NodePtySnapshotOptions {
   type?: 'png' | 'jpeg';
   emojiFontPath?: string;
   emojiFontFamily?: string;
+  baseFontPath?: string;
+  baseFontFamily?: string;
   /** Timeout in milliseconds for the PTY process (default: 30000ms) */
   timeout?: number;
 }
@@ -89,6 +113,8 @@ export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Pr
     type = 'png',
     emojiFontPath,
     emojiFontFamily,
+    baseFontPath,
+    baseFontFamily,
     timeout = 30000
   } = options;
 
@@ -144,14 +170,23 @@ export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Pr
     });
   });
 
-  const emojiConfig = emojiFontPath
-    ? { emojiFontPath, emojiFontFamily: emojiFontFamily ?? 'InkSnapshotEmoji' }
-    : undefined;
+  const fontConfig = {
+    emojiFontPath,
+    emojiFontFamily,
+    baseFontPath,
+    baseFontFamily
+  };
 
-  const fontStackForLog = emojiConfig
-    ? `${emojiConfig.emojiFontFamily}, ${fontFamily}`
-    : fontFamily;
-  console.log(`[ink-visual-testing] Rendering snapshot with fonts: ${fontStackForLog}`);
+  const fontStackForLogParts = [];
+  if (fontConfig.emojiFontFamily) {
+    fontStackForLogParts.push(fontConfig.emojiFontFamily);
+  }
+  if (fontConfig.baseFontFamily) {
+    fontStackForLogParts.push(fontConfig.baseFontFamily);
+  }
+  fontStackForLogParts.push(fontFamily);
+
+  console.log(`[ink-visual-testing] Rendering snapshot with fonts: ${fontStackForLogParts.join(', ')}`);
   console.log(`[ink-visual-testing] Captured data length: ${captured.length} bytes`);
   if (captured.length < 100) {
     console.log(`[ink-visual-testing] WARNING: Captured data seems too short!`);
@@ -166,7 +201,7 @@ export async function createSnapshotFromPty(options: NodePtySnapshotOptions): Pr
     console.log(`[ink-visual-testing] Removed ${vsCount} variation selectors for consistent rendering`);
   }
 
-  const buffer = await withEmojiFontConfig(emojiConfig, () =>
+  const buffer = await withEmojiFontConfig(fontConfig, () =>
     renderScreenshot({
       data: cleanedData,
       margin,

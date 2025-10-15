@@ -387,7 +387,7 @@ jobs:
 - **Share a snapshot config** – Define a single object that freezes every dimension-sensitive option (`cols`, `rows`, `margin`, `fontFamily`, `emojiFontKey`) and reuse it in all tests and in CI:
   ```ts
   const sharedSnapshotConfig = {
-    ...getCIOptimizedConfig('system'),
+    ...getCIOptimizedConfig(),
     cols: 80,
     rows: 24,
     margin: 12,
@@ -623,15 +623,26 @@ await fixedPtyRender(
 
 ### Font Configuration
 
-Uses system fonts by default (recommended). To use bundled emoji fonts:
+Uses bundled DejaVu Sans Mono by default so snapshots look the same locally and in CI. To adjust emoji or base fonts:
 
 ```tsx
 import { getCIOptimizedConfig } from 'ink-visual-testing';
 
-getCIOptimizedConfig('mono')   // NotoEmoji-Regular.ttf (monochrome)
-getCIOptimizedConfig('color')  // NotoColorEmoji.ttf (color)
-getCIOptimizedConfig()         // System fonts (default)
+getCIOptimizedConfig('mono'); // Use bundled monochrome emoji font
+getCIOptimizedConfig('color'); // Use bundled color emoji font
+
+// Fall back to the system's monospace font stack (matching pre-v0.1.19 behaviour)
+getCIOptimizedConfig({ baseFont: 'system' });
 ```
+
+> **Tip:** `getCIOptimizedConfig()` now returns `{ baseFont: 'bundled' }` by default, which loads the included DejaVu Sans Mono (`font/DejaVuSansMono.ttf`). This avoids "baseline vs CI" font mismatches while still letting you opt into system fonts when needed.
+
+**Bundled fonts**
+- DejaVu Sans Mono (Bitstream Vera License)
+- NotoColorEmoji (SIL Open Font License)
+- NotoEmoji-Regular (SIL Open Font License)
+- TwemojiMozilla (Mozilla Public License)
+- GNU Unifont (GNU GPLv2 with font embedding exception)
 
 ## Examples
 
