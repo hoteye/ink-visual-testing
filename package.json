@@ -1,6 +1,6 @@
 {
   "name": "ink-visual-testing",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "Visual regression testing for Ink components",
   "type": "module",
   "main": "dist/index.js",
