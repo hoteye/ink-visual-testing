@@ -1,3 +1,6 @@
+// Auto-apply xterm patches on import
+import './patch-init.js';
+
 import fs from 'fs';
 import path from 'path';
 import process from 'process';

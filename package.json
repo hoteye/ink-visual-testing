@@ -17,14 +17,12 @@
     "test:visual": "vitest --run",
     "test:coverage": "vitest --coverage",
     "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package --patch-dir=./patches"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@xterm/addon-unicode11": "^0.8.0",
     "ink": "^4.4.1",
     "node-pty": "^1.0.0",
-    "patch-package": "^8.0.1",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0",
     "react": "^18.2.0",
