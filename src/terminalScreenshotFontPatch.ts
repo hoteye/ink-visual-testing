@@ -98,17 +98,33 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
     return originalGenerateTemplate(options);
   }
 
-  const { emojiFontPath, emojiFontFamily, baseFontPath, baseFontFamily, cols, rows } = currentFontConfig;
+  const { emojiFontPath, emojiFontFamily, baseFontPath, baseFontFamily, cols: configCols, rows: configRows } = currentFontConfig;
   const absoluteEmojiPath = emojiFontPath ? path.resolve(emojiFontPath) : undefined;
   const absoluteBaseFontPath = baseFontPath ? path.resolve(baseFontPath) : undefined;
 
-  // Use cols/rows from PTY instead of calculating from ANSI data
-  // The PTY was spawned with specific cols/rows, and Ink laid out content for that size
-  // Recalculating from output causes width mismatches between Ink and xterm.js
-  const terminalColumns = cols ?? 80;
-  const terminalRows = rows ?? 24;
+  // Use cols/rows from PTY if available (better for emoji layout), otherwise calculate from data
+  let terminalColumns: number;
+  let terminalRows: number;
 
-  console.log(`[terminalScreenshotFontPatch] Using terminal size: ${terminalColumns} cols × ${terminalRows} rows (from PTY)`);
+  if (configCols !== undefined && configRows !== undefined) {
+    // Use the PTY dimensions - these match what Ink used for layout
+    terminalColumns = configCols;
+    terminalRows = configRows;
+  } else {
+    // Fallback: calculate from ANSI output (less reliable)
+    const lines = options.data.split(/\r?\n/);
+    terminalRows = lines.length;
+
+    const pattern = [
+      '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
+      '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
+    ].join('|');
+    terminalColumns = Math.max(...lines.map((line: string) => {
+      return line.replaceAll(new RegExp(pattern, 'g'), '').length;
+    }));
+  }
+
+  console.log(`[terminalScreenshotFontPatch] Using terminal size: ${terminalColumns} cols × ${terminalRows} rows`);
 
   const fontFamilies = normaliseFamilies(options.fontFamily, emojiFontFamily, baseFontFamily);
   const fontStack = fontFamilies.map(quoteFamily).join(', ');
@@ -121,7 +137,10 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
   const url = require('url');
   const xtermCssUrl = url.pathToFileURL(require.resolve('xterm/css/xterm.css')).href;
   const xtermJsUrl = url.pathToFileURL(require.resolve('xterm/lib/xterm.js')).href;
-  const unicode11Url = url.pathToFileURL(require.resolve('@xterm/addon-unicode11/lib/addon-unicode11.js')).href;
+
+  // Read Unicode11Addon source code to inline it (more reliable than external script in Puppeteer)
+  const unicode11AddonPath = require.resolve('@xterm/addon-unicode11/lib/addon-unicode11.js');
+  const unicode11AddonSource = await fs.readFile(unicode11AddonPath, 'utf-8');
 
   const template = `
     <!DOCTYPE html>
@@ -154,7 +173,15 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
         <link rel="stylesheet" href="${xtermCssUrl}" />
 
         <script src="${xtermJsUrl}"></script>
-        <script src="${unicode11Url}"></script>
+        <script>
+            // Inline Unicode11Addon to ensure it's available in Puppeteer
+            ${unicode11AddonSource}
+
+            // Force export to window if not already there
+            if (typeof window !== 'undefined' && typeof Unicode11Addon !== 'undefined' && !window.Unicode11Addon) {
+                window.Unicode11Addon = Unicode11Addon;
+            }
+        </script>
     </head>
 
     <body>
@@ -162,15 +189,16 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
 
         <script>
             const resolveUnicode11Ctor = () => {
-                const globalRef = (typeof Unicode11Addon !== 'undefined') ? Unicode11Addon : undefined;
-                if (!globalRef) {
-                    return undefined;
+                // Check multiple possible export patterns
+                if (typeof Unicode11Addon !== 'undefined') {
+                    return typeof Unicode11Addon === 'function'
+                        ? Unicode11Addon
+                        : (Unicode11Addon.Unicode11Addon || Unicode11Addon);
                 }
-                if (typeof globalRef === 'function') {
-                    return globalRef;
-                }
-                if (typeof globalRef === 'object' && typeof globalRef.Unicode11Addon === 'function') {
-                    return globalRef.Unicode11Addon;
+                if (typeof window !== 'undefined' && window.Unicode11Addon) {
+                    return typeof window.Unicode11Addon === 'function'
+                        ? window.Unicode11Addon
+                        : (window.Unicode11Addon.Unicode11Addon || window.Unicode11Addon);
                 }
                 return undefined;
             };
@@ -181,12 +209,14 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
                     fontFamily: "${fontStackEscaped}",
                     rows: ${terminalRows},
                     cols: ${terminalColumns},
-                    cursorInactiveStyle: "none"
+                    cursorInactiveStyle: "none",
+                    allowProposedApi: true
                 });
 
                 terminal.open(document.getElementById('terminal'));
 
                 const Unicode11Ctor = resolveUnicode11Ctor();
+
                 if (Unicode11Ctor) {
                     try {
                         console.log('[ink-visual-testing] Loading Unicode 11 addon');
@@ -195,10 +225,10 @@ templateModule.generateTemplate = async function patchedGenerateTemplate(options
                         terminal.unicode.activeVersion = '11';
                         console.log('[ink-visual-testing] Active Unicode version:', terminal.unicode.activeVersion);
                     } catch (error) {
-                        console.warn('[ink-visual-testing] Failed to initialize Unicode11 addon:', error);
+                        console.error('[ink-visual-testing] Failed to initialize Unicode11 addon:', error);
                     }
                 } else {
-                    console.warn('[ink-visual-testing] Unicode11 addon not available; continuing without it');
+                    console.error('[ink-visual-testing] Unicode11 addon not available; emoji rendering may be incorrect');
                 }
 
                 terminal.write(${JSON.stringify(options.data)});
