@@ -18,7 +18,7 @@
     "test:coverage": "vitest --coverage",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package --patch-dir=./patches"
   },
   "dependencies": {
     "@xterm/addon-unicode11": "^0.8.0",
