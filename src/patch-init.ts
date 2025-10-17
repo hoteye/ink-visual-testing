@@ -12,7 +12,9 @@ import { execSync } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 try {
-  // Look for patches directory relative to this file
+  // Look for patches directory relative to dist/ (not the project root)
+  // Patches are packaged inside the npm package at node_modules/ink-visual-testing/dist/../patches
+  // or in the source at src/../patches (relative to this file's location)
   const patchesDir = path.join(__dirname, '..', 'patches');
 
   if (fs.existsSync(patchesDir)) {
