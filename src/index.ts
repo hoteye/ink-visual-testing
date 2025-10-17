@@ -11,6 +11,15 @@ import { getBundledBaseFont } from './baseFont.js';
 export { getEmojiFontPath, EMOJI_FONT_OPTIONS };
 export type { EmojiFontOption } from './emojiFonts.js';
 
+/**
+ * Clean ANSI data by removing variation selectors that can cause width calculation mismatches
+ * This is automatically called by fixedPtyRender and createSnapshotFromPty
+ * Export it here so users can also manually process their own captured terminal data
+ */
+export function cleanAnsiData(data: string): string {
+  return data.replace(/\uFE0F/g, '');
+}
+
 // Export visual test helper
 export { visualTest } from './visualTest.js';
 export type { VisualTestOptions } from './visualTest.js';
