@@ -19,8 +19,13 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit"
   },
+  "bin": {
+    "ink-visual-testing": "./dist/cli.js"
+  },
   "dependencies": {
     "@xterm/addon-unicode11": "^0.8.0",
+    "commander": "^12.1.0",
+    "glob": "^11.0.3",
     "node-pty": "^1.0.0",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0",

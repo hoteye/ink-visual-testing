@@ -38,7 +38,75 @@ npm install ink@^6.0.0 react@^19.0.0
 
 ## Usage
 
-### 1. Basic Usage
+### Quick Start
+
+There are two ways to use ink-visual-testing:
+
+1. **CLI Tool** (Recommended) - Simple command-line testing
+2. **Programmatic API** - Full control within test files
+
+### CLI Tool
+
+#### Initialize Configuration
+
+```bash
+npx ink-visual-testing init
+```
+
+This creates a `.ink-visual.config.js` file with default settings:
+
+```js
+// .ink-visual.config.js
+export default {
+  preset: 'standard',         // Terminal size preset
+  maxDiffPixels: 100,         // Allowed pixel differences  
+  threshold: 0.1,             // Pixel difference threshold
+  backgroundColor: '#000000', // Terminal background
+  updateBaseline: true        // Auto-create baselines
+};
+```
+
+#### Run Tests
+
+```bash
+# Test single file
+npx ink-visual-testing test examples/my-app.tsx
+
+# Test with preset
+npx ink-visual-testing test --preset wide examples/my-app.tsx
+
+# Batch test multiple files
+npx ink-visual-testing test --batch "examples/*.tsx"
+
+# Custom terminal size
+npx ink-visual-testing test --cols 100 --rows 30 examples/my-app.tsx
+```
+
+#### Available Presets
+
+```bash
+npx ink-visual-testing presets
+```
+
+**Standard sizes:**
+- `tiny` (40×15) - For minimal components
+- `narrow` (60×20) - For constrained environments  
+- `standard` (80×24) - Classic default size
+- `wide` (120×40) - For modern development
+- `ultra-wide` (160×50) - For large displays
+
+**CI/Development:**
+- `ci` (100×30) - Optimized for automation
+- `ci-narrow` (80×25) - For resource-constrained CI
+
+**Specialized:**
+- `mobile` (50×20) - For mobile terminal apps
+- `test-small` (60×15) - For focused component testing
+- `test-large` (140×45) - For comprehensive UI testing
+
+### Programmatic API
+
+#### 1. Basic Usage
 
 ```tsx
 import { describe, it } from 'vitest';
@@ -106,27 +174,55 @@ describe('Dashboard', () => {
 });
 ```
 
-### 4. Testing Responsive Layouts
+### 4. Testing with Presets
 
 ```tsx
 it('different terminal sizes', async () => {
   const mockData = { /* ... */ };
 
-  // Small terminal
+  // Using presets
   await visualTest('small', <MyApp data={mockData} />, {
-    cols: 60,
-    rows: 20
+    preset: 'tiny'
   });
 
-  // Large terminal
   await visualTest('large', <MyApp data={mockData} />, {
-    cols: 120,
-    rows: 40
+    preset: 'wide'
+  });
+
+  // Override preset with custom size
+  await visualTest('custom', <MyApp data={mockData} />, {
+    preset: 'standard',
+    rows: 50  // Override preset's default rows
   });
 });
 ```
 
-### 5. Updating Baselines
+### 5. Batch Testing
+
+```tsx
+import { batchVisualTest } from 'ink-visual-testing';
+
+it('batch test multiple components', async () => {
+  const results = await batchVisualTest([
+    {
+      name: 'header',
+      componentOrPath: <Header title="Test" />,
+      options: { preset: 'standard' }
+    },
+    {
+      name: 'footer', 
+      componentOrPath: <Footer />,
+      options: { preset: 'narrow' }
+    }
+  ]);
+
+  // Check results
+  const failed = results.filter(r => !r.passed);
+  expect(failed).toHaveLength(0);
+});
+```
+
+### 6. Updating Baselines
 
 When you have **intentional** UI changes, update baselines:
 
@@ -414,6 +510,125 @@ jobs:
 - **Controlled baseline updates** – Mirror Vitest’s snapshot flow: respect the `--update` flag (or `process.env.UPDATE_SNAPSHOT`) to decide when to write into `tests/__screenshots__/<test-file>/`, and otherwise emit fresh renders into `tests/__visual_output__` for diffing. Provide a manual override env (e.g. `UPDATE_BASELINES=1`) only as a fallback for local scripts.
 - **Document overrides** – If a test needs a different size (e.g. small vs. large terminal), record the reasoning in code comments and keep those values constant between baseline generation and CI runs.
 - **Optional trims** – If you want to remove surrounding padding, pass `trimTransparentBorder: true`; otherwise keep the same margin everywhere so that the bitmap remains identical across runs.
+
+## API Reference
+
+### CLI Commands
+
+```bash
+# Initialize configuration
+npx ink-visual-testing init
+
+# Run tests
+npx ink-visual-testing test [options] <testFiles...>
+
+# List presets  
+npx ink-visual-testing presets
+
+# Help
+npx ink-visual-testing --help
+```
+
+**Test Options:**
+- `--preset <name>` - Terminal preset (tiny, standard, wide, etc.)
+- `--cols <number>` - Terminal columns
+- `--rows <number>` - Terminal rows  
+- `--config <file>` - Configuration file path
+- `--update-baseline` - Update baseline if missing
+- `--batch` - Batch mode for better performance
+
+### Programmatic API
+
+#### Core Functions
+
+```tsx
+import { 
+  visualTest,
+  batchVisualTest,
+  batchVisualTestFromFiles,
+  loadConfig,
+  getTerminalPreset 
+} from 'ink-visual-testing';
+
+// Basic visual test
+await visualTest(name, componentOrPath, options?);
+
+// Batch testing
+const results = await batchVisualTest(testCases);
+
+// Batch from file patterns
+const results = await batchVisualTestFromFiles(['tests/*.tsx']);
+
+// Load configuration 
+const config = await loadConfig();
+
+// Get preset details
+const preset = getTerminalPreset('wide');
+```
+
+#### Types
+
+```tsx
+interface VisualTestOptions {
+  preset?: string;           // Terminal preset name
+  cols?: number;            // Terminal columns
+  rows?: number;            // Terminal rows
+  maxDiffPixels?: number;   // Max allowed diff pixels
+  threshold?: number;       // Pixel difference threshold 0-1
+  backgroundColor?: string; // Background color
+  updateBaseline?: boolean; // Auto-create baselines
+}
+
+interface BatchTestCase {
+  name: string;
+  componentOrPath: React.ReactElement | string;
+  options?: VisualTestOptions;
+}
+
+interface BatchTestResult {
+  name: string;
+  passed: boolean;
+  error?: string;
+  duration: number;
+}
+
+interface TerminalPreset {
+  cols: number;
+  rows: number; 
+  description: string;
+}
+```
+
+#### Configuration Files
+
+Configuration is automatically loaded from:
+1. `.ink-visual.config.js`
+2. `.ink-visual.config.mjs`
+3. `.lokirc`
+4. `.lokirc.json`
+
+```js
+// .ink-visual.config.js
+export default {
+  preset: 'standard',
+  maxDiffPixels: 100,
+  threshold: 0.1,
+  backgroundColor: '#000000',
+  updateBaseline: true
+};
+```
+
+#### Available Presets
+
+```tsx
+import { TERMINAL_PRESETS, listTerminalPresets } from 'ink-visual-testing';
+
+// Get all presets
+const presets = listTerminalPresets();
+
+// Access preset definitions
+const standardPreset = TERMINAL_PRESETS.standard; // { cols: 80, rows: 24, description: "..." }
+```
 
 ### Project Structure
 

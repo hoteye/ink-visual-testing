@@ -24,6 +24,18 @@ export function cleanAnsiData(data: string): string {
 export { visualTest } from './visualTest.js';
 export type { VisualTestOptions } from './visualTest.js';
 
+// Export batch testing
+export { batchVisualTest, batchVisualTestFromFiles, batchVisualTestParallel } from './batchTest.js';
+export type { BatchTestCase, BatchTestResult } from './batchTest.js';
+
+// Export configuration
+export { loadConfig, mergeConfig } from './config.js';
+export type { InkVisualConfig } from './config.js';
+
+// Export presets
+export { getTerminalPreset, listTerminalPresets, TERMINAL_PRESETS } from './presets.js';
+export type { TerminalPreset } from './presets.js';
+
 /**
  * Get CI-optimized configuration for consistent snapshot rendering.
  * Uses bundled fonts by default for cross-platform consistency.

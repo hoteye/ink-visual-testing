@@ -48,12 +48,12 @@ describe('Font stack normalization', () => {
   it('should order fonts correctly: emoji → base → fallback', () => {
     const result = normaliseFamilies(
       'DejaVu Sans Mono, monospace',
-      'InkSnapshotEmojiMono',
+      'InkSnapshotEmojiNoto',
       'InkSnapshotBaseMono'
     );
 
     expect(result).toEqual([
-      'InkSnapshotEmojiMono',
+      'InkSnapshotEmojiNoto',
       'InkSnapshotBaseMono',
       'DejaVu Sans Mono',
       'monospace'
@@ -81,11 +81,11 @@ describe('Font stack normalization', () => {
   it('should handle emoji-only configuration', () => {
     const result = normaliseFamilies(
       'monospace',
-      'InkSnapshotEmojiMono'
+      'InkSnapshotEmojiNoto'
     );
 
     expect(result).toEqual([
-      'InkSnapshotEmojiMono',
+      'InkSnapshotEmojiNoto',
       'monospace'
     ]);
   });
@@ -129,12 +129,12 @@ describe('Font stack normalization', () => {
     // In practice, emoji and base fonts come from config without whitespace
     const result = normaliseFamilies(
       'DejaVu Sans Mono, monospace',
-      'InkSnapshotEmojiMono',
+      'InkSnapshotEmojiNoto',
       'InkSnapshotBaseMono'
     );
 
     expect(result).toEqual([
-      'InkSnapshotEmojiMono',
+      'InkSnapshotEmojiNoto',
       'InkSnapshotBaseMono',
       'DejaVu Sans Mono',
       'monospace'
@@ -153,12 +153,12 @@ describe('Font stack normalization', () => {
   it('should handle complex font stack with duplicates', () => {
     const result = normaliseFamilies(
       'InkSnapshotBaseMono, DejaVu Sans Mono, Arial, monospace',
-      'InkSnapshotEmojiMono',
+      'InkSnapshotEmojiNoto',
       'InkSnapshotBaseMono'
     );
 
     expect(result).toEqual([
-      'InkSnapshotEmojiMono',
+      'InkSnapshotEmojiNoto',
       'InkSnapshotBaseMono', // appears once from bundledBaseFamily
       'DejaVu Sans Mono',
       'Arial',

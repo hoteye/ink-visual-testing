@@ -2,11 +2,15 @@ import React from 'react';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
+import { getTerminalPreset, TERMINAL_PRESETS } from './presets.js';
+import { loadConfig, mergeConfig } from './config.js';
 
 export interface VisualTestOptions {
-  /** Terminal columns (default: 80) */
+  /** Terminal preset name (e.g., 'standard', 'wide', 'ci') */
+  preset?: string;
+  /** Terminal columns (default: 80, overrides preset) */
   cols?: number;
-  /** Terminal rows (default: 24) */
+  /** Terminal rows (default: 24, overrides preset) */
   rows?: number;
   /** Maximum allowed diff pixels (default: 100) */
   maxDiffPixels?: number;
@@ -59,6 +63,29 @@ export async function visualTest(
   componentOrPath: React.ReactElement | string,
   options: VisualTestOptions = {}
 ): Promise<void> {
+  // Load configuration file
+  const config = await loadConfig();
+  
+  // Merge config with provided options (options take precedence)
+  const mergedOptions = mergeConfig(config, options);
+  
+  // Apply preset if specified
+  let presetConfig = {};
+  if (mergedOptions.preset) {
+    const preset = getTerminalPreset(mergedOptions.preset);
+    if (!preset) {
+      const availablePresets = Object.keys(TERMINAL_PRESETS).join(', ');
+      throw new Error(
+        `Unknown preset "${mergedOptions.preset}". Available presets: ${availablePresets}`
+      );
+    }
+    presetConfig = { cols: preset.cols, rows: preset.rows };
+    console.log(`📐 Using terminal preset: ${mergedOptions.preset} (${preset.description})`);
+  }
+
+  // Merge preset with explicit options (explicit options override preset)
+  const finalOptions = { ...presetConfig, ...mergedOptions };
+  
   const {
     cols = 80,
     rows = 24,
@@ -66,7 +93,7 @@ export async function visualTest(
     threshold = 0.1,
     backgroundColor = '#000000',
     updateBaseline = true
-  } = options;
+  } = finalOptions;
 
   // File paths
   const outputPath = path.resolve(`tests/__output__/${name}.png`);

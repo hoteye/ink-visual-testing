@@ -31,10 +31,10 @@ describe('getCIOptimizedConfig', () => {
   });
 
   it('should configure emoji font when specified', () => {
-    const config = getCIOptimizedConfig({ emojiFontKey: 'mono' });
+    const config = getCIOptimizedConfig({ emojiFontKey: 'noto' });
 
     expect(config.emojiFontPath).toBeDefined();
-    expect(config.emojiFontFamily).toBe('InkSnapshotEmojiMono');
+    expect(config.emojiFontFamily).toBe('InkSnapshotEmojiNoto');
   });
 
   it('should use system emoji when emojiFontKey is system', () => {
@@ -53,17 +53,17 @@ describe('getCIOptimizedConfig', () => {
   });
 
   it('should support legacy string parameter for emoji font', () => {
-    const config = getCIOptimizedConfig('mono');
+    const config = getCIOptimizedConfig('noto');
 
     expect(config.emojiFontPath).toBeDefined();
-    expect(config.emojiFontFamily).toBe('InkSnapshotEmojiMono');
+    expect(config.emojiFontFamily).toBe('InkSnapshotEmojiNoto');
   });
 });
 
 describe('Font stack construction', () => {
   it('should construct proper font stack order: emoji → base → fallback', () => {
     const config = getCIOptimizedConfig({
-      emojiFontKey: 'mono',
+      emojiFontKey: 'noto',
       baseFont: 'bundled'
     });
 
@@ -71,9 +71,9 @@ describe('Font stack construction', () => {
 
     // The final font stack will be constructed as:
     // emojiFontFamily, baseFontFamily, fontFamily
-    // which should result in: InkSnapshotEmojiMono, InkSnapshotBaseMono, DejaVu Sans Mono, monospace
+    // which should result in: InkSnapshotEmojiNoto, InkSnapshotBaseMono, DejaVu Sans Mono, monospace
 
-    expect(config.emojiFontFamily).toBe('InkSnapshotEmojiMono');
+    expect(config.emojiFontFamily).toBe('InkSnapshotEmojiNoto');
     expect(config.baseFontFamily).toBe(bundledBase.family);
     expect(config.fontFamily).toBe('DejaVu Sans Mono, monospace');
 

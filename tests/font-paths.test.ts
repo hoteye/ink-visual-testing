@@ -13,8 +13,8 @@ import { getBundledBaseFont } from '../src/baseFont.js';
  * 3. Have the correct font family names
  */
 describe('Emoji font path resolution', () => {
-  it('should resolve mono emoji font path', () => {
-    const fontPath = getEmojiFontPath('mono');
+  it('should resolve noto emoji font path', () => {
+    const fontPath = getEmojiFontPath('noto');
 
     expect(fontPath).toBeDefined();
     expect(fontPath).toContain('NotoEmoji-Regular.ttf');
@@ -54,7 +54,7 @@ describe('Emoji font path resolution', () => {
   });
 
   it('should resolve to absolute paths', () => {
-    const fontPath = getEmojiFontPath('mono');
+    const fontPath = getEmojiFontPath('noto');
 
     expect(fontPath).toBeDefined();
     if (fontPath) {
@@ -63,7 +63,7 @@ describe('Emoji font path resolution', () => {
   });
 
   it('should verify bundled emoji fonts exist', () => {
-    const fontsToCheck = ['mono', 'color', 'twemoji', 'unifont'];
+    const fontsToCheck = ['noto', 'color', 'twemoji', 'unifont'];
 
     for (const key of fontsToCheck) {
       const fontPath = getEmojiFontPath(key);
@@ -87,7 +87,7 @@ describe('Emoji font options metadata', () => {
   });
 
   it('should define font families for bundled fonts', () => {
-    expect(EMOJI_FONT_OPTIONS.mono.family).toBe('InkSnapshotEmojiMono');
+    expect(EMOJI_FONT_OPTIONS.noto.family).toBe('InkSnapshotEmojiNoto');
     expect(EMOJI_FONT_OPTIONS.color.family).toBe('InkSnapshotEmoji');
     expect(EMOJI_FONT_OPTIONS.twemoji.family).toBe('InkSnapshotTwemoji');
     expect(EMOJI_FONT_OPTIONS.unifont.family).toBe('InkSnapshotUnifont');
@@ -99,7 +99,7 @@ describe('Emoji font options metadata', () => {
   });
 
   it('should define font paths for bundled fonts', () => {
-    expect(EMOJI_FONT_OPTIONS.mono.path).toBeDefined();
+    expect(EMOJI_FONT_OPTIONS.noto.path).toBeDefined();
     expect(EMOJI_FONT_OPTIONS.color.path).toBeDefined();
     expect(EMOJI_FONT_OPTIONS.twemoji.path).toBeDefined();
     expect(EMOJI_FONT_OPTIONS.unifont.path).toBeDefined();
@@ -151,7 +151,7 @@ describe('Base font path resolution', () => {
 
 describe('Font directory structure', () => {
   it('should have font directory at package root', () => {
-    const fontPath = getEmojiFontPath('mono');
+    const fontPath = getEmojiFontPath('noto');
 
     expect(fontPath).toBeDefined();
     if (fontPath) {
@@ -163,7 +163,7 @@ describe('Font directory structure', () => {
   it('should locate fonts relative to dist directory', () => {
     // After compilation, fonts should be accessible from ../font
     const baseFont = getBundledBaseFont();
-    const fontPath = getEmojiFontPath('mono');
+    const fontPath = getEmojiFontPath('noto');
 
     expect(baseFont.path).toBeDefined();
     expect(fontPath).toBeDefined();
@@ -177,11 +177,11 @@ describe('Font directory structure', () => {
 
 describe('Font file format validation', () => {
   it('should use TTF format for most fonts', () => {
-    const monoPath = getEmojiFontPath('mono');
+    const notoPath = getEmojiFontPath('noto');
     const colorPath = getEmojiFontPath('color');
     const twemojiPath = getEmojiFontPath('twemoji');
 
-    expect(monoPath).toMatch(/\.ttf$/);
+    expect(notoPath).toMatch(/\.ttf$/);
     expect(colorPath).toMatch(/\.ttf$/);
     expect(twemojiPath).toMatch(/\.ttf$/);
   });
@@ -193,7 +193,7 @@ describe('Font file format validation', () => {
   });
 
   it('should have valid font file extensions', () => {
-    const allFonts = ['mono', 'color', 'twemoji', 'unifont'];
+    const allFonts = ['noto', 'color', 'twemoji', 'unifont'];
 
     for (const key of allFonts) {
       const fontPath = getEmojiFontPath(key);
