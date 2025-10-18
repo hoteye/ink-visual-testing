@@ -240,7 +240,7 @@ function componentToString(element: React.ReactElement): string {
   }
 
   // Handle children
-  const { children } = props;
+  const { children } = props as { children?: unknown };
   if (!children) {
     return `React.createElement('${componentName}', ${JSON.stringify(props || {})})`;
   }

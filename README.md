@@ -22,6 +22,20 @@ Visual regression testing helps detect unexpected changes in your UI:
 npm install ink-visual-testing --save-dev
 ```
 
+**Note:** This library has peer dependencies on `ink` and `react`. Make sure they're installed in your project:
+
+```bash
+# For Ink v4/v5 (React 18)
+npm install ink@^4.0.0 react@^18.0.0
+
+# For Ink v6 (React 19)
+npm install ink@^6.0.0 react@^19.0.0
+```
+
+**Supported versions:**
+- Ink: v4.x, v5.x, v6.x
+- React: v18.x, v19.x
+
 ## Usage
 
 ### 1. Basic Usage
