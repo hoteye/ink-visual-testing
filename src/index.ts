@@ -26,27 +26,28 @@ export type { VisualTestOptions } from './visualTest.js';
 
 /**
  * Get CI-optimized configuration for consistent snapshot rendering.
- * This configuration uses system fonts by default which work reliably across different CI environments.
+ * Uses bundled fonts by default for cross-platform consistency.
  *
- * Note: Bundled emoji fonts (NotoEmoji, etc.) may not work in all environments (e.g., WSL).
- * Use system fonts for better compatibility.
- *
- * @param emojiFontKey - Optional emoji font key ('mono', 'color', 'twemoji', 'unifont', 'system'). Defaults to 'system'.
+ * @param emojiFontKey - Optional emoji font key ('noto', 'color', 'twemoji', 'unifont', 'system'). Defaults to 'noto'.
  * @returns Partial configuration object to merge with your options
  *
  * @example
  * ```ts
  * import { fixedPtyRender, getCIOptimizedConfig } from 'ink-visual-testing';
  *
+ * // Recommended: Use bundled fonts for consistency
  * await fixedPtyRender(
  *   'my-cli.tsx',
  *   'output.png',
  *   {
- *     ...getCIOptimizedConfig(), // Uses bundled DejaVu Sans Mono by default
+ *     ...getCIOptimizedConfig(), // Uses bundled Noto emoji + DejaVu Sans Mono
  *     cols: 120,
  *     rows: 60
  *   }
  * );
+ *
+ * // Alternative: Use system fonts (may differ across platforms)
+ * getCIOptimizedConfig({ emojiFontKey: 'system', baseFont: 'system' });
  * ```
  */
 type BaseFontMode = 'bundled' | 'system';
@@ -59,7 +60,7 @@ export interface CIOptimizedConfigOptions {
 export function getCIOptimizedConfig(
   optionsOrEmojiKey?: string | CIOptimizedConfigOptions
 ): Partial<NodePtySnapshotOptions> {
-  let emojiFontKey = 'system';
+  let emojiFontKey = 'noto';
   let baseFont: BaseFontMode = 'bundled';
 
   if (typeof optionsOrEmojiKey === 'string') {

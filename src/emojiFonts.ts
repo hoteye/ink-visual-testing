@@ -13,21 +13,21 @@ export const EMOJI_FONT_OPTIONS: Record<string, EmojiFontOption> = {
     key: 'system',
     description: 'Use system font stack (no local font override)'
   },
+  noto: {
+    key: 'noto',
+    description: 'Use bundled NotoEmoji-Regular.ttf (color vector emoji, recommended for cross-platform consistency)',
+    path: 'font/NotoEmoji-Regular.ttf',
+    family: 'InkSnapshotEmojiNoto'
+  },
   color: {
     key: 'color',
-    description: 'Use bundled NotoColorEmoji.ttf (color)',
+    description: 'Use bundled NotoColorEmoji.ttf (color bitmap emoji)',
     path: 'font/NotoColorEmoji.ttf',
     family: 'InkSnapshotEmoji'
   },
-  mono: {
-    key: 'mono',
-    description: 'Use bundled NotoEmoji-Regular.ttf (monochrome)',
-    path: 'font/NotoEmoji-Regular.ttf',
-    family: 'InkSnapshotEmojiMono'
-  },
   twemoji: {
     key: 'twemoji',
-    description: 'Use bundled TwemojiMozilla.ttf (color)',
+    description: 'Use bundled TwemojiMozilla.ttf (color emoji)',
     path: 'font/TwemojiMozilla.ttf',
     family: 'InkSnapshotTwemoji'
   },
@@ -51,14 +51,14 @@ export function resolveEmojiFont(key?: string) {
  * Get the absolute path to a bundled emoji font.
  * Useful for CI environments where you need consistent emoji rendering.
  *
- * @param key - Font key: 'color', 'mono', 'twemoji', or 'unifont'
+ * @param key - Font key: 'noto', 'color', 'twemoji', or 'unifont'
  * @returns Absolute path to the font file, or undefined if using system fonts
  *
  * @example
  * ```ts
  * import { getEmojiFontPath } from 'ink-visual-testing';
  *
- * const emojiPath = getEmojiFontPath('mono');
+ * const emojiPath = getEmojiFontPath('noto');
  * // Returns: '/path/to/node_modules/ink-visual-testing/font/NotoEmoji-Regular.ttf'
  * ```
  */

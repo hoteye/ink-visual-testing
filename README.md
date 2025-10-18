@@ -630,14 +630,19 @@ Uses bundled DejaVu Sans Mono by default so snapshots look the same locally and 
 ```tsx
 import { getCIOptimizedConfig } from 'ink-visual-testing';
 
-getCIOptimizedConfig('mono'); // Use bundled monochrome emoji font
-getCIOptimizedConfig('color'); // Use bundled color emoji font
+// Recommended: Use bundled fonts for cross-platform consistency
+getCIOptimizedConfig();        // Default: bundled Noto emoji + DejaVu Sans Mono
+getCIOptimizedConfig('noto');  // Explicit: color vector emoji (same as default)
+getCIOptimizedConfig('color'); // Alternative: color bitmap emoji
 
-// Fall back to the system's monospace font stack (matching pre-v0.1.19 behaviour)
-getCIOptimizedConfig({ baseFont: 'system' });
+// Use system fonts (may differ across Mac/Linux/Windows)
+getCIOptimizedConfig({ emojiFontKey: 'system', baseFont: 'system' });
 ```
 
-> **Tip:** `getCIOptimizedConfig()` now returns `{ baseFont: 'bundled' }` by default, which loads the included DejaVu Sans Mono (`font/DejaVuSansMono.ttf`). This avoids "baseline vs CI" font mismatches while still letting you opt into system fonts when needed.
+> **Important for Cross-Platform Consistency:**
+> - **Default (`'noto'`)**: Uses bundled NotoEmoji-Regular.ttf (color vector emoji) + DejaVu Sans Mono. **Ensures identical rendering on Mac, Linux, Windows, and CI.**
+> - **System fonts**: Mac uses Apple Color Emoji, Linux uses Noto Color Emoji, Windows uses Segoe UI Emoji. **Will produce different baselines on different platforms.**
+> - **Recommendation**: Always use bundled fonts (`getCIOptimizedConfig()` or `getCIOptimizedConfig('noto')`) to ensure your local baselines match CI output.
 
 **Bundled fonts**
 - DejaVu Sans Mono (Bitstream Vera License)
