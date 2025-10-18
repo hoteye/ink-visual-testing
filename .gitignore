@@ -39,3 +39,6 @@ modern-ttys/
 xterm-source/
 terminal-screenshot/
 gemini-cli/
+
+# External repositories for research/comparison
+loki/
